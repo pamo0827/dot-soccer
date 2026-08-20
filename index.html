@@ -4,173 +4,347 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI-Hackathon</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=Noto+Sans+JP:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg-1: #0b0e17;
-    --bg-2: #151a2b;
-    --surface: rgba(255, 255, 255, 0.06);
-    --surface-border: rgba(255, 255, 255, 0.12);
-    --text: #f2f4f8;
-    --muted: #9aa3b5;
-    --accent: #7dd3fc;
-    --accent-2: #c084fc;
-    --accent-3: #5eead4;
+  * { box-sizing: border-box; cursor: crosshair; }
+
+  @keyframes rainbow-bg {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
   }
-  * { box-sizing: border-box; }
-  html, body { height: 100%; }
-  body {
-    margin: 0;
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: radial-gradient(circle at 20% 20%, var(--bg-2), var(--bg-1) 60%);
-    color: var(--text);
-    font-family: "Sora", "Noto Sans JP", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    overflow: hidden;
-    position: relative;
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes spin-rev { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+  @keyframes wobble {
+    0%, 100% { transform: rotate(-2deg) scale(1); }
+    50%      { transform: rotate(2deg) scale(1.02); }
+  }
+  @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+  @keyframes marquee { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
+  @keyframes marquee-rev { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+  @keyframes bounce-star {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50%      { transform: translateY(-24px) rotate(180deg); }
+  }
+  @keyframes text-rainbow {
+    0%   { color: #ff0055; }
+    16%  { color: #ff9900; }
+    33%  { color: #ffee00; }
+    50%  { color: #33ff00; }
+    66%  { color: #00ccff; }
+    83%  { color: #aa00ff; }
+    100% { color: #ff0055; }
+  }
+  @keyframes fall {
+    from { transform: translateY(-10vh) rotate(0deg); }
+    to   { transform: translateY(110vh) rotate(720deg); }
+  }
+  @keyframes shake {
+    0%, 100% { transform: translate(0, 0); }
+    25%      { transform: translate(-2px, 1px); }
+    50%      { transform: translate(2px, -1px); }
+    75%      { transform: translate(-1px, -1px); }
   }
 
-  .orb {
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(70px);
-    opacity: 0.55;
-    animation: float 14s ease-in-out infinite;
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    font-family: "Comic Sans MS", "Chalkboard SE", "Hiragino Maru Gothic ProN", sans-serif;
+    overflow-x: hidden;
+  }
+
+  body {
+    background: repeating-linear-gradient(
+      45deg,
+      #ff00cc, #ff00cc 40px,
+      #3300ff 40px, #3300ff 80px,
+      #00ffcc 80px, #00ffcc 120px,
+      #ffee00 120px, #ffee00 160px
+    );
+    background-size: 400% 400%;
+    animation: rainbow-bg 6s linear infinite;
+    position: relative;
+    min-height: 100vh;
+    padding-bottom: 40px;
+  }
+
+  .tape {
+    width: 100%;
+    background: repeating-linear-gradient(45deg, #111 0 20px, #ffd400 20px 40px);
+    padding: 6px 0;
+    border-top: 4px double #000;
+    border-bottom: 4px double #000;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .tape span {
+    display: inline-block;
+    padding-left: 100%;
+    animation: marquee 9s linear infinite;
+    font-weight: 900;
+    letter-spacing: 3px;
+    color: #111;
+    text-shadow: 1px 1px 0 #fff;
+  }
+  .tape.bottom span { animation-name: marquee-rev; }
+
+  .stars-layer {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
     z-index: 0;
   }
-  .orb-1 {
-    width: 380px;
-    height: 380px;
-    background: radial-gradient(circle, var(--accent), transparent 70%);
-    top: -80px;
-    left: -100px;
-    animation-delay: 0s;
-  }
-  .orb-2 {
-    width: 320px;
-    height: 320px;
-    background: radial-gradient(circle, var(--accent-2), transparent 70%);
-    bottom: -100px;
-    right: -80px;
-    animation-delay: -5s;
-  }
-  .orb-3 {
-    width: 260px;
-    height: 260px;
-    background: radial-gradient(circle, var(--accent-3), transparent 70%);
-    top: 60%;
-    left: 55%;
-    animation-delay: -9s;
+  .star {
+    position: absolute;
+    font-size: 34px;
+    animation: bounce-star 2.4s ease-in-out infinite, spin 5s linear infinite;
+    filter: drop-shadow(0 0 6px #fff);
   }
 
-  @keyframes float {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    50% { transform: translate(30px, -40px) scale(1.08); }
+  .confetti {
+    position: fixed;
+    top: 0;
+    width: 10px;
+    height: 10px;
+    pointer-events: none;
+    z-index: 0;
+    animation: fall linear infinite;
+    opacity: 0.9;
   }
 
-  .card {
+  main {
     position: relative;
-    z-index: 1;
-    background: var(--surface);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid var(--surface-border);
-    border-radius: 20px;
-    padding: 52px 58px;
+    z-index: 2;
+    max-width: 640px;
+    margin: 40px auto;
+    padding: 0 16px;
+  }
+
+  .board {
+    background: #fff;
+    border: 8px ridge #ff00aa;
+    border-radius: 4px;
+    padding: 30px 34px;
     text-align: center;
-    max-width: 460px;
     box-shadow:
-      0 20px 60px rgba(0, 0, 0, 0.45),
-      inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    animation: rise 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+      0 0 0 4px #111,
+      0 0 40px 10px rgba(255, 0, 200, 0.7),
+      inset 0 0 30px rgba(255, 200, 0, 0.4);
+    animation: wobble 3.2s ease-in-out infinite, shake 0.25s linear infinite;
   }
 
-  @keyframes rise {
-    from { opacity: 0; transform: translateY(18px) scale(0.98); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
+  .glitter-title {
+    font-size: 44px;
+    font-weight: 900;
+    margin: 6px 0 4px;
+    animation: text-rainbow 2s linear infinite, spin 0.01s;
+    text-shadow:
+      2px 2px 0 #000,
+      -2px -2px 0 #000,
+      4px 4px 0 rgba(0,0,0,0.2);
+    letter-spacing: 1px;
   }
 
-  .badge {
+  .subtitle {
+    font-size: 20px;
+    font-weight: bold;
+    color: #ff0088;
+    animation: blink 1s steps(1) infinite;
+  }
+
+  .under-construction {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 14px;
-    border-radius: 999px;
-    background: linear-gradient(90deg, rgba(125, 211, 252, 0.15), rgba(192, 132, 252, 0.15));
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    color: var(--accent);
+    gap: 8px;
+    margin: 18px 0;
+    padding: 8px 16px;
+    background: repeating-linear-gradient(45deg, #ffd400 0 12px, #111 12px 24px);
+    color: #fff;
+    font-weight: 900;
+    border: 3px solid #111;
+    border-radius: 6px;
+    text-shadow: 1px 1px 0 #000;
+  }
+  .under-construction .cone { animation: spin-rev 4s linear infinite; display: inline-block; }
+
+  p.desc {
+    color: #6600cc;
+    font-size: 16px;
+    line-height: 1.8;
+    font-weight: bold;
+  }
+
+  .divider {
+    height: 6px;
+    margin: 22px 0;
+    background: repeating-linear-gradient(90deg, #ff0055 0 10px, #ffee00 10px 20px, #00ccff 20px 30px, #33ff00 30px 40px);
+    border-radius: 3px;
+  }
+
+  .counter-box {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin-top: 6px;
+  }
+  .counter-label {
     font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    margin-bottom: 20px;
+    font-weight: bold;
+    color: #333;
+    letter-spacing: 1px;
   }
-  .badge::before {
-    content: "";
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--accent-3);
-    box-shadow: 0 0 8px var(--accent-3);
+  .counter-digits {
+    display: flex;
+    gap: 3px;
+    background: #000;
+    padding: 6px 10px;
+    border-radius: 4px;
+    box-shadow: inset 0 0 6px rgba(0,255,0,0.6);
   }
-
-  h1 {
-    font-size: 30px;
-    font-weight: 700;
-    margin: 0 0 10px;
-    background: linear-gradient(90deg, #ffffff, var(--accent));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    letter-spacing: -0.01em;
+  .counter-digits span {
+    font-family: "Courier New", monospace;
+    font-weight: 900;
+    font-size: 24px;
+    color: #00ff33;
+    text-shadow: 0 0 8px #00ff33;
+    width: 18px;
+    text-align: center;
   }
 
-  p {
-    color: var(--muted);
-    line-height: 1.7;
-    margin: 0;
-    font-size: 15px;
+  .btn-row {
+    margin-top: 24px;
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    flex-wrap: wrap;
   }
+  .wacky-btn {
+    font-family: inherit;
+    font-weight: 900;
+    font-size: 14px;
+    padding: 12px 20px;
+    border: 4px outset #ff66cc;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #ffee00, #ff00cc, #00ccff);
+    background-size: 300% 300%;
+    animation: rainbow-bg 3s linear infinite;
+    color: #111;
+    text-shadow: 1px 1px 0 #fff;
+    box-shadow: 0 0 15px rgba(255, 0, 200, 0.8);
+  }
+  .wacky-btn:active { border-style: inset; transform: scale(0.96); }
 
-  .meta {
-    margin-top: 28px;
-    padding-top: 22px;
-    border-top: 1px solid var(--surface-border);
-    font-size: 13px;
-    color: var(--muted);
+  footer.meta {
+    margin-top: 26px;
+    padding-top: 16px;
+    border-top: 3px dashed #ff0088;
+    font-size: 12px;
+    color: #333;
+    font-weight: bold;
     display: flex;
     justify-content: space-between;
-    align-items: center;
-  }
-  .meta span:first-child {
-    display: inline-flex;
-    align-items: center;
+    flex-wrap: wrap;
     gap: 6px;
-    font-weight: 500;
+  }
+  #sparkle-trail {
+    position: fixed;
+    z-index: 999;
+    pointer-events: none;
+    font-size: 18px;
   }
 </style>
 </head>
 <body>
-  <div class="orb orb-1"></div>
-  <div class="orb orb-2"></div>
-  <div class="orb orb-3"></div>
 
-  <div class="card">
-    <span class="badge">Deploy OK</span>
-    <h1>AI-Hackathon</h1>
-    <p>Vercelへのデプロイ確認用テストページです。</p>
-    <div class="meta">
-      <span>GitHub → Vercel</span>
-      <span id="time"></span>
+  <div class="tape"><span>★彡 ようこそ 彡★ WELCOME TO THE HACKATHON ZONE ★彡 ようこそ 彡★ WELCOME TO THE HACKATHON ZONE ★彡</span></div>
+
+  <div class="stars-layer" id="starsLayer"></div>
+
+  <main>
+    <div class="board">
+      <div class="under-construction">
+        <span class="cone">🚧</span> UNDER CONSTRUCTION <span class="cone">🚧</span>
+      </div>
+
+      <h1 class="glitter-title">✨🌈 AI-Hackathon 🌈✨</h1>
+      <p class="subtitle">▓▓▓ Vercelへのデプロイ確認用テストページ ▓▓▓</p>
+
+      <div class="divider"></div>
+
+      <p class="desc">
+        👾 このページは正常に爆誕しました 👾<br>
+        💾 GitHub → Vercel の接続、たしかに確認！ 💾<br>
+        🛸 ここは自由なインターネット、深夜テンションの証 🛸
+      </p>
+
+      <div class="counter-box">
+        <span class="counter-label">YOU ARE VISITOR NUMBER</span>
+        <div class="counter-digits" id="hitCounter"></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="wacky-btn" type="button" onclick="alert('🎉 ゲストブックに署名しました！(嘘)')">📝 ゲストブックに書く</button>
+        <button class="wacky-btn" type="button" onclick="document.body.style.filter = document.body.style.filter ? '' : 'invert(1) hue-rotate(180deg)'">🔄 パラレルワールドへ</button>
+      </div>
+
+      <footer class="meta">
+        <span>🖥️ Best viewed at 800x600 🖥️</span>
+        <span id="time"></span>
+      </footer>
     </div>
-  </div>
+  </main>
+
+  <div class="tape bottom"><span>🔥 サイコーに変なデザイン公開中 🔥 THIS PAGE IS INTENTIONALLY UNHINGED 🔥 サイコーに変なデザイン公開中 🔥</span></div>
+
+  <span id="sparkle-trail">✨</span>
 
   <script>
-    document.getElementById('time').textContent = new Date().toLocaleString('ja-JP');
+    document.getElementById('time').textContent = '🕒 ' + new Date().toLocaleString('ja-JP');
+
+    // ばらまき星
+    const starEmojis = ['⭐','✨','🌟','💫','🌀','🎀','💖'];
+    const layer = document.getElementById('starsLayer');
+    for (let i = 0; i < 22; i++) {
+      const el = document.createElement('div');
+      el.className = 'star';
+      el.textContent = starEmojis[i % starEmojis.length];
+      el.style.left = Math.random() * 100 + 'vw';
+      el.style.top = Math.random() * 100 + 'vh';
+      el.style.animationDelay = (Math.random() * 3) + 's, ' + (Math.random() * 3) + 's';
+      layer.appendChild(el);
+    }
+
+    // 紙吹雪
+    const confettiColors = ['#ff0055', '#ffee00', '#00ccff', '#33ff00', '#ff00cc', '#ff9900'];
+    for (let i = 0; i < 40; i++) {
+      const c = document.createElement('div');
+      c.className = 'confetti';
+      c.style.left = Math.random() * 100 + 'vw';
+      c.style.background = confettiColors[i % confettiColors.length];
+      c.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+      c.style.animationDuration = (4 + Math.random() * 5) + 's';
+      c.style.animationDelay = (Math.random() * 6) + 's';
+      document.body.appendChild(c);
+    }
+
+    // 昔懐かしヒットカウンター
+    const count = (parseInt(localStorage.getItem('weirdHitCount') || '4200', 10) + 1);
+    localStorage.setItem('weirdHitCount', String(count));
+    const digitsBox = document.getElementById('hitCounter');
+    String(count).padStart(6, '0').split('').forEach(d => {
+      const s = document.createElement('span');
+      s.textContent = d;
+      digitsBox.appendChild(s);
+    });
+
+    // キラキラカーソル追跡
+    const trail = document.getElementById('sparkle-trail');
+    const sparkles = ['✨','💖','⭐','🌟'];
+    document.addEventListener('mousemove', (e) => {
+      trail.style.left = (e.clientX + 12) + 'px';
+      trail.style.top = (e.clientY + 12) + 'px';
+      trail.textContent = sparkles[Math.floor(Math.random() * sparkles.length)];
+    });
   </script>
 </body>
 </html>
