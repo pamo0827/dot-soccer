@@ -6,18 +6,17 @@
 <title>AI-Hackathon</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=Noto+Sans+JP:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=Inter:wght@300;400;500;600&family=Noto+Serif+JP:wght@400;600&family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg-1: #0b0e17;
-    --bg-2: #151a2b;
-    --surface: rgba(255, 255, 255, 0.06);
-    --surface-border: rgba(255, 255, 255, 0.12);
-    --text: #f2f4f8;
-    --muted: #9aa3b5;
-    --accent: #7dd3fc;
-    --accent-2: #c084fc;
-    --accent-3: #5eead4;
+    --bg: #0a0a0d;
+    --bg-2: #14131a;
+    --ink: #f4efe4;
+    --muted: #9c9689;
+    --gold: #d4af7a;
+    --gold-soft: rgba(212, 175, 122, 0.35);
+    --surface: rgba(255, 255, 255, 0.045);
+    --surface-border: rgba(212, 175, 122, 0.22);
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
@@ -27,102 +26,102 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: radial-gradient(circle at 20% 20%, var(--bg-2), var(--bg-1) 60%);
-    color: var(--text);
-    font-family: "Sora", "Noto Sans JP", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Inter", "Noto Serif JP", -apple-system, BlinkMacSystemFont, sans-serif;
     overflow: hidden;
     position: relative;
+    cursor: default;
   }
 
-  .orb {
+  /* ===== HOME SCREEN ===== */
+  .aurora {
     position: absolute;
-    border-radius: 50%;
-    filter: blur(70px);
-    opacity: 0.55;
-    animation: float 14s ease-in-out infinite;
+    inset: -20%;
     z-index: 0;
+    background:
+      radial-gradient(38% 32% at 18% 22%, rgba(212, 175, 122, 0.16), transparent 70%),
+      radial-gradient(30% 28% at 82% 78%, rgba(122, 155, 212, 0.12), transparent 70%),
+      radial-gradient(26% 24% at 78% 18%, rgba(180, 122, 212, 0.09), transparent 70%),
+      conic-gradient(from 0deg at 50% 50%, var(--bg), var(--bg-2), var(--bg));
+    animation: drift 30s linear infinite;
+    filter: blur(10px);
   }
-  .orb-1 {
-    width: 380px;
-    height: 380px;
-    background: radial-gradient(circle, var(--accent), transparent 70%);
-    top: -80px;
-    left: -100px;
-    animation-delay: 0s;
-  }
-  .orb-2 {
-    width: 320px;
-    height: 320px;
-    background: radial-gradient(circle, var(--accent-2), transparent 70%);
-    bottom: -100px;
-    right: -80px;
-    animation-delay: -5s;
-  }
-  .orb-3 {
-    width: 260px;
-    height: 260px;
-    background: radial-gradient(circle, var(--accent-3), transparent 70%);
-    top: 60%;
-    left: 55%;
-    animation-delay: -9s;
+  @keyframes drift {
+    0%   { transform: rotate(0deg) scale(1.15); }
+    100% { transform: rotate(360deg) scale(1.15); }
   }
 
-  @keyframes float {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    50% { transform: translate(30px, -40px) scale(1.08); }
+  .spotlight {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: radial-gradient(480px circle at var(--mx, 50%) var(--my, 50%), rgba(212, 175, 122, 0.07), transparent 60%);
+    pointer-events: none;
+    transition: background 0.15s ease-out;
   }
+
+  .grain {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    opacity: 0.05;
+    pointer-events: none;
+    mix-blend-mode: overlay;
+  }
+
+  #homeScreen { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+  #homeScreen.hidden { display: none; }
 
   .card {
     position: relative;
-    z-index: 1;
+    z-index: 3;
     background: var(--surface);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
     border: 1px solid var(--surface-border);
-    border-radius: 20px;
-    padding: 52px 58px;
+    border-radius: 4px;
+    padding: 64px 68px;
     text-align: center;
-    max-width: 460px;
+    max-width: 480px;
     box-shadow:
-      0 20px 60px rgba(0, 0, 0, 0.45),
-      inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    animation: rise 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+      0 30px 80px rgba(0, 0, 0, 0.55),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    animation: rise 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(22px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 
-  @keyframes rise {
-    from { opacity: 0; transform: translateY(18px) scale(0.98); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
+  .rule {
+    width: 36px;
+    height: 1px;
+    background: var(--gold);
+    margin: 0 auto 22px;
+    opacity: 0.7;
   }
 
   .badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 14px;
+    display: inline-block;
+    padding: 5px 16px;
     border-radius: 999px;
-    background: linear-gradient(90deg, rgba(125, 211, 252, 0.15), rgba(192, 132, 252, 0.15));
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    color: var(--accent);
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
+    border: 1px solid var(--gold-soft);
+    color: var(--gold);
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.22em;
     text-transform: uppercase;
-    margin-bottom: 20px;
-  }
-  .badge::before {
-    content: "";
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--accent-3);
-    box-shadow: 0 0 8px var(--accent-3);
+    margin-bottom: 26px;
   }
 
   h1 {
-    font-size: 30px;
-    font-weight: 700;
-    margin: 0 0 10px;
-    background: linear-gradient(90deg, #ffffff, var(--accent));
+    font-family: "Playfair Display", "Noto Serif JP", serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 42px;
+    margin: 0 0 14px;
+    background: linear-gradient(120deg, #ffffff 10%, var(--gold) 60%, #ffffff 90%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -131,46 +130,610 @@
 
   p {
     color: var(--muted);
-    line-height: 1.7;
+    line-height: 1.9;
     margin: 0;
-    font-size: 15px;
+    font-size: 14px;
+    font-weight: 300;
+    letter-spacing: 0.02em;
   }
 
   .meta {
-    margin-top: 28px;
-    padding-top: 22px;
+    margin-top: 34px;
+    padding-top: 24px;
     border-top: 1px solid var(--surface-border);
-    font-size: 13px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
     color: var(--muted);
     display: flex;
     justify-content: space-between;
     align-items: center;
+    text-transform: uppercase;
   }
-  .meta span:first-child {
-    display: inline-flex;
+
+  .start-btn {
+    margin-top: 32px;
+    width: 100%;
+    padding: 15px;
+    background: transparent;
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: background 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+  }
+  .start-btn:hover {
+    background: var(--gold);
+    color: #14120c;
+    box-shadow: 0 0 30px rgba(212, 175, 122, 0.35);
+  }
+
+  /* music control */
+  .music {
+    position: fixed;
+    right: 28px;
+    bottom: 28px;
+    z-index: 40;
+    display: flex;
     align-items: center;
-    gap: 6px;
-    font-weight: 500;
+    gap: 12px;
+  }
+  .music-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 16px;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  .music-bars.on { opacity: 1; }
+  .music-bars span {
+    width: 3px;
+    height: 4px;
+    background: var(--gold);
+    border-radius: 2px;
+    transform-origin: bottom;
+  }
+
+  .music-btn {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    border: 1px solid var(--surface-border);
+    background: var(--surface);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--gold);
+    transition: border-color 0.25s ease, transform 0.25s ease;
+  }
+  .music-btn:hover { border-color: var(--gold-soft); transform: scale(1.05); }
+  .music-btn svg { width: 16px; height: 16px; }
+  .music-btn .pause { display: none; }
+  .music-btn.playing .play { display: none; }
+  .music-btn.playing .pause { display: block; }
+
+  /* ===== KUSOGE SCREEN ===== */
+  #gameScreen, #clearScreen {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: "Press Start 2P", monospace;
+    background:
+      repeating-linear-gradient(45deg, #ff2ec4 0 40px, #14d1ff 40px 80px, #fff94d 80px 120px, #33ff5e 120px 160px);
+    background-size: 220% 220%;
+    animation: bgshift 6s linear infinite;
+  }
+  @keyframes bgshift {
+    0% { background-position: 0% 0%; }
+    100% { background-position: 200% 200%; }
+  }
+  #gameScreen.show, #clearScreen.show { display: flex; }
+
+  .kusoge-title {
+    color: #fff;
+    font-size: 22px;
+    text-shadow: 3px 3px 0 #ff2ec4, -3px -3px 0 #14d1ff;
+    margin-bottom: 10px;
+    animation: blink 0.6s steps(1) infinite;
+    text-align: center;
+  }
+  @keyframes blink { 50% { opacity: 0.35; } }
+
+  .kusoge-sub {
+    color: #14120c;
+    background: #fff94d;
+    padding: 4px 10px;
+    font-size: 9px;
+    margin-bottom: 16px;
+    border: 3px solid #14120c;
+  }
+
+  #gameCanvas {
+    background: #101018;
+    border: 6px solid #14120c;
+    box-shadow: 10px 10px 0 rgba(0,0,0,0.5);
+    image-rendering: pixelated;
+    max-width: 92vw;
+  }
+  #gameCanvas.shake { animation: shake 0.25s; }
+  @keyframes shake {
+    0%,100% { transform: translate(0,0); }
+    25% { transform: translate(-8px, 4px); }
+    50% { transform: translate(8px, -4px); }
+    75% { transform: translate(-6px, -6px); }
+  }
+
+  .hud {
+    display: flex;
+    justify-content: space-between;
+    width: min(640px, 92vw);
+    margin-top: 12px;
+    color: #fff;
+    font-size: 10px;
+    text-shadow: 2px 2px 0 #14120c;
+  }
+  #lives { letter-spacing: 4px; }
+  .progress-wrap {
+    width: min(640px, 92vw);
+    height: 14px;
+    border: 3px solid #14120c;
+    background: #fff;
+    margin-top: 8px;
+  }
+  #progressBar { height: 100%; width: 0%; background: repeating-linear-gradient(90deg, #ff2ec4 0 10px, #14d1ff 10px 20px); }
+
+  #clearScreen {
+    background: radial-gradient(circle at 50% 40%, #fff94d, #ff7a18 60%, #ff2ec4 100%);
+  }
+  .clear-title {
+    font-size: 40px;
+    color: #fff;
+    text-shadow: 4px 4px 0 #ff2ec4, -4px -4px 0 #14d1ff, 0 0 30px #fff;
+    animation: pop 0.6s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  @keyframes pop {
+    from { transform: scale(0); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  .clear-sub {
+    margin-top: 16px;
+    color: #14120c;
+    font-size: 11px;
+    background: #fff;
+    padding: 10px 16px;
+    border: 3px solid #14120c;
+  }
+  .clear-actions { margin-top: 26px; display: flex; gap: 14px; }
+  .kusoge-btn {
+    font-family: "Press Start 2P", monospace;
+    font-size: 10px;
+    padding: 12px 18px;
+    background: #14120c;
+    color: #fff94d;
+    border: 3px solid #fff;
+    cursor: pointer;
+    box-shadow: 5px 5px 0 rgba(0,0,0,0.4);
+  }
+  .kusoge-btn:active { transform: translate(3px, 3px); box-shadow: 2px 2px 0 rgba(0,0,0,0.4); }
+
+  .confetti-piece {
+    position: absolute;
+    top: -20px;
+    width: 10px;
+    height: 10px;
+    z-index: 1;
+    animation: fall linear forwards;
+  }
+  @keyframes fall {
+    to { transform: translateY(110vh) rotate(720deg); }
   }
 </style>
 </head>
 <body>
-  <div class="orb orb-1"></div>
-  <div class="orb orb-2"></div>
-  <div class="orb orb-3"></div>
 
-  <div class="card">
-    <span class="badge">Deploy OK</span>
-    <h1>AI-Hackathon</h1>
-    <p>Vercelへのデプロイ確認用テストページです。</p>
-    <div class="meta">
-      <span>GitHub → Vercel</span>
-      <span id="time"></span>
+  <!-- ================= HOME SCREEN ================= -->
+  <div id="homeScreen">
+    <div class="aurora"></div>
+    <div class="spotlight" id="spotlight"></div>
+    <svg class="grain" xmlns="http://www.w3.org/2000/svg">
+      <filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/></filter>
+      <rect width="100%" height="100%" filter="url(#noise)"/>
+    </svg>
+
+    <div class="card">
+      <div class="rule"></div>
+      <span class="badge">Deploy OK</span>
+      <h1>AI&nbsp;Hackathon</h1>
+      <p>Vercelへのデプロイ確認用テストページです。</p>
+      <button class="start-btn" id="startBtn">START</button>
+      <div class="meta">
+        <span>GitHub → Vercel</span>
+        <span id="time"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="music">
+    <div class="music-bars" id="bars">
+      <span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <button class="music-btn" id="musicBtn" aria-label="Toggle ambient music">
+      <svg class="play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      <svg class="pause" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+    </button>
+  </div>
+
+  <!-- ================= KUSOGE GAME SCREEN ================= -->
+  <div id="gameScreen">
+    <div class="kusoge-title">とんでも☆ジャンプクソゲー</div>
+    <div class="kusoge-sub">SPACEキー / タップ でジャンプ！ゴールを目指せ！</div>
+    <canvas id="gameCanvas" width="640" height="220"></canvas>
+    <div class="hud">
+      <span id="lives">❤️❤️❤️</span>
+      <span id="distanceLabel">0%</span>
+    </div>
+    <div class="progress-wrap"><div id="progressBar"></div></div>
+  </div>
+
+  <!-- ================= CLEAR SCREEN ================= -->
+  <div id="clearScreen">
+    <div class="clear-title">CLEAR!!</div>
+    <div class="clear-sub">やったね！！クソゲーをクリアしました🎉</div>
+    <div class="clear-actions">
+      <button class="kusoge-btn" id="retryBtn">もういちど</button>
+      <button class="kusoge-btn" id="homeBtn">ホームへ</button>
     </div>
   </div>
 
   <script>
     document.getElementById('time').textContent = new Date().toLocaleString('ja-JP');
+
+    // cursor spotlight
+    const spotlight = document.getElementById('spotlight');
+    window.addEventListener('pointermove', (e) => {
+      spotlight.style.setProperty('--mx', e.clientX + 'px');
+      spotlight.style.setProperty('--my', e.clientY + 'px');
+    });
+
+    // ---- procedural ambient music (no external assets) ----
+    const NOTE = {
+      C3:130.81, D3:146.83, E3:164.81, F3:174.61, G3:196.00, A3:220.00, B3:246.94,
+      C4:261.63, D4:293.66, E4:329.63, F4:349.23, G4:392.00, A4:440.00, B4:493.88,
+      C5:523.25, D5:587.33, E5:659.25, G5:783.99
+    };
+    const progression = [
+      ['C3','G3','C4','E4','G4'],
+      ['A3','E3','A4','C5'],
+      ['F3','C4','F4','A4'],
+      ['G3','D4','G4','B4'],
+    ];
+
+    let audioCtx, master, delayNode, filter, analyser;
+    let chordIndex = 0, chordTimer = null, isPlaying = false;
+
+    function initAudio() {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      master = audioCtx.createGain();
+      master.gain.value = 0.0001;
+
+      filter = audioCtx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 1800;
+
+      delayNode = audioCtx.createDelay(2.0);
+      delayNode.delayTime.value = 0.55;
+      const feedback = audioCtx.createGain();
+      feedback.gain.value = 0.32;
+      const delayMix = audioCtx.createGain();
+      delayMix.gain.value = 0.35;
+      delayNode.connect(feedback);
+      feedback.connect(delayNode);
+      delayNode.connect(delayMix);
+
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 32;
+
+      filter.connect(master);
+      filter.connect(delayNode);
+      delayMix.connect(master);
+      master.connect(analyser);
+      analyser.connect(audioCtx.destination);
+
+      master.gain.linearRampToValueAtTime(0.16, audioCtx.currentTime + 3);
+    }
+
+    function playChord(notes) {
+      const now = audioCtx.currentTime;
+      const dur = 7.2;
+      notes.forEach((n, i) => {
+        const freq = NOTE[n];
+        [1, 1.003].forEach((detune) => {
+          const osc = audioCtx.createOscillator();
+          osc.type = i === 0 ? 'triangle' : 'sine';
+          osc.frequency.value = freq * detune;
+
+          const gain = audioCtx.createGain();
+          gain.gain.setValueAtTime(0, now);
+          gain.gain.linearRampToValueAtTime(0.09 / notes.length, now + 2.4);
+          gain.gain.linearRampToValueAtTime(0.06 / notes.length, now + dur - 2);
+          gain.gain.linearRampToValueAtTime(0, now + dur);
+
+          osc.connect(gain);
+          gain.connect(filter);
+          osc.start(now);
+          osc.stop(now + dur + 0.1);
+        });
+      });
+
+      filter.frequency.cancelScheduledValues(now);
+      filter.frequency.setValueAtTime(filter.frequency.value, now);
+      filter.frequency.linearRampToValueAtTime(2400, now + dur / 2);
+      filter.frequency.linearRampToValueAtTime(1500, now + dur);
+    }
+
+    function tick() {
+      playChord(progression[chordIndex % progression.length]);
+      chordIndex++;
+    }
+
+    const bars = document.querySelectorAll('#bars span');
+    const barsWrap = document.getElementById('bars');
+    let rafId;
+    function animateBars() {
+      if (!analyser) return;
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(data);
+      bars.forEach((bar, i) => {
+        const v = data[i + 1] || 0;
+        bar.style.height = 4 + (v / 255) * 16 + 'px';
+      });
+      rafId = requestAnimationFrame(animateBars);
+    }
+
+    const musicBtn = document.getElementById('musicBtn');
+    function stopMusic() {
+      if (!isPlaying) return;
+      isPlaying = false;
+      musicBtn.classList.remove('playing');
+      barsWrap.classList.remove('on');
+      master.gain.cancelScheduledValues(audioCtx.currentTime);
+      master.gain.linearRampToValueAtTime(0.0001, audioCtx.currentTime + 1.2);
+      clearInterval(chordTimer);
+      cancelAnimationFrame(rafId);
+      setTimeout(() => bars.forEach(b => b.style.height = '4px'), 300);
+    }
+    musicBtn.addEventListener('click', () => {
+      if (!audioCtx) initAudio();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+
+      if (isPlaying) {
+        stopMusic();
+      } else {
+        isPlaying = true;
+        musicBtn.classList.add('playing');
+        barsWrap.classList.add('on');
+        tick();
+        chordTimer = setInterval(tick, 7200);
+        animateBars();
+      }
+    });
+
+    // ---- tiny sfx engine (shares the game's own audio context) ----
+    let sfxCtx;
+    function beep(freq, dur, type, vol) {
+      if (!sfxCtx) sfxCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = sfxCtx.createOscillator();
+      const gain = sfxCtx.createGain();
+      osc.type = type || 'square';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(vol || 0.12, sfxCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, sfxCtx.currentTime + dur);
+      osc.connect(gain);
+      gain.connect(sfxCtx.destination);
+      osc.start();
+      osc.stop(sfxCtx.currentTime + dur);
+    }
+    const sfxJump = () => beep(520, 0.12, 'square', 0.1);
+    const sfxHit = () => beep(110, 0.3, 'sawtooth', 0.14);
+    const sfxClear = () => [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => beep(f, 0.25, 'square', 0.12), i * 120));
+
+    // ================= KUSOGE GAME =================
+    const homeScreen = document.getElementById('homeScreen');
+    const gameScreen = document.getElementById('gameScreen');
+    const clearScreen = document.getElementById('clearScreen');
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const livesEl = document.getElementById('lives');
+    const distanceLabel = document.getElementById('distanceLabel');
+    const progressBar = document.getElementById('progressBar');
+
+    const GROUND_Y = 170;
+    const GRAVITY = 0.6;
+    const JUMP_VELOCITY = -11.5;
+    const SPEED = 4.2;
+    const GOAL_DISTANCE = 2600;
+
+    let player, obstacles, distance, lives, gameRunning, nextSpawnAt, invincibleUntil, gameLoopId;
+
+    function resetGame() {
+      player = { x: 70, y: GROUND_Y - 26, vy: 0, w: 26, h: 26, grounded: true };
+      obstacles = [];
+      distance = 0;
+      lives = 3;
+      gameRunning = true;
+      nextSpawnAt = 60;
+      invincibleUntil = 0;
+      livesEl.textContent = '❤️'.repeat(lives);
+      progressBar.style.width = '0%';
+      distanceLabel.textContent = '0%';
+    }
+
+    function jump() {
+      if (!gameRunning) return;
+      if (player.grounded) {
+        player.vy = JUMP_VELOCITY;
+        player.grounded = false;
+        sfxJump();
+      }
+    }
+
+    function spawnObstacle() {
+      const h = 24 + Math.random() * 28;
+      obstacles.push({ x: canvas.width + 20, y: GROUND_Y - h, w: 22, h });
+    }
+
+    function update() {
+      if (!gameRunning) return;
+
+      distance += SPEED;
+      nextSpawnAt -= 1;
+      if (nextSpawnAt <= 0) {
+        spawnObstacle();
+        nextSpawnAt = 85 + Math.random() * 55;
+      }
+
+      player.vy += GRAVITY;
+      player.y += player.vy;
+      if (player.y >= GROUND_Y - player.h) {
+        player.y = GROUND_Y - player.h;
+        player.vy = 0;
+        player.grounded = true;
+      }
+
+      obstacles.forEach(o => o.x -= SPEED);
+      obstacles = obstacles.filter(o => o.x + o.w > -10);
+
+      const now = performance.now();
+      if (now > invincibleUntil) {
+        for (const o of obstacles) {
+          const pad = 6;
+          const hit =
+            player.x + pad < o.x + o.w &&
+            player.x + player.w - pad > o.x &&
+            player.y + pad < o.y + o.h &&
+            player.y + player.h - pad > o.y;
+          if (hit) {
+            lives -= 1;
+            livesEl.textContent = '❤️'.repeat(Math.max(lives, 0)) + '🖤'.repeat(3 - Math.max(lives, 0));
+            invincibleUntil = now + 1200;
+            canvas.classList.add('shake');
+            setTimeout(() => canvas.classList.remove('shake'), 250);
+            sfxHit();
+            obstacles = obstacles.filter(ob => ob !== o);
+            if (lives <= 0) resetGame();
+            break;
+          }
+        }
+      }
+
+      const pct = Math.min(100, Math.floor((distance / GOAL_DISTANCE) * 100));
+      progressBar.style.width = pct + '%';
+      distanceLabel.textContent = pct + '%';
+
+      if (distance >= GOAL_DISTANCE) {
+        gameRunning = false;
+        onClear();
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = '#1a1a26';
+      ctx.fillRect(0, GROUND_Y, canvas.width, canvas.height - GROUND_Y);
+      ctx.fillStyle = '#33ff5e';
+      ctx.fillRect(0, GROUND_Y, canvas.width, 4);
+
+      const blink = performance.now() < invincibleUntil && Math.floor(performance.now() / 80) % 2 === 0;
+      if (!blink) {
+        ctx.fillStyle = '#ff2ec4';
+        ctx.fillRect(player.x, player.y, player.w, player.h);
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(player.x + 6, player.y + 6, 5, 5);
+        ctx.fillRect(player.x + 16, player.y + 6, 5, 5);
+      }
+
+      ctx.fillStyle = '#fff94d';
+      obstacles.forEach(o => ctx.fillRect(o.x, o.y, o.w, o.h));
+
+      const goalX = canvas.width - 30;
+      ctx.fillStyle = '#14d1ff';
+      ctx.fillRect(goalX, GROUND_Y - 90, 4, 90);
+      ctx.fillStyle = '#fff';
+      ctx.font = '9px "Press Start 2P"';
+      ctx.fillText('GOAL', goalX - 14, GROUND_Y - 94);
+    }
+
+    function loop() {
+      update();
+      draw();
+      if (gameRunning) gameLoopId = requestAnimationFrame(loop);
+    }
+
+    function startGame() {
+      homeScreen.classList.add('hidden');
+      gameScreen.classList.add('show');
+      clearScreen.classList.remove('show');
+      resetGame();
+      cancelAnimationFrame(gameLoopId);
+      loop();
+    }
+
+    function spawnConfetti() {
+      const colors = ['#ff2ec4', '#14d1ff', '#fff94d', '#33ff5e', '#fff'];
+      for (let i = 0; i < 60; i++) {
+        const piece = document.createElement('div');
+        piece.className = 'confetti-piece';
+        piece.style.left = Math.random() * 100 + 'vw';
+        piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+        piece.style.animationDuration = (2 + Math.random() * 2) + 's';
+        piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+        document.body.appendChild(piece);
+        setTimeout(() => piece.remove(), 4200);
+      }
+    }
+
+    function onClear() {
+      cancelAnimationFrame(gameLoopId);
+      gameScreen.classList.remove('show');
+      clearScreen.classList.add('show');
+      sfxClear();
+      spawnConfetti();
+    }
+
+    document.getElementById('startBtn').addEventListener('click', startGame);
+    document.getElementById('retryBtn').addEventListener('click', () => {
+      clearScreen.classList.remove('show');
+      gameScreen.classList.add('show');
+      resetGame();
+      cancelAnimationFrame(gameLoopId);
+      loop();
+    });
+    document.getElementById('homeBtn').addEventListener('click', () => {
+      clearScreen.classList.remove('show');
+      gameScreen.classList.remove('show');
+      homeScreen.classList.remove('hidden');
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' || e.code === 'ArrowUp') {
+        e.preventDefault();
+        jump();
+      }
+    });
+    canvas.addEventListener('pointerdown', jump);
   </script>
 </body>
 </html>
