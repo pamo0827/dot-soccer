@@ -17,6 +17,7 @@
     --gold-soft: rgba(212, 175, 122, 0.35);
     --surface: rgba(255, 255, 255, 0.045);
     --surface-border: rgba(212, 175, 122, 0.22);
+    --stage-color: #ffb56b;
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
@@ -220,8 +221,8 @@
   .music-btn.playing .play { display: none; }
   .music-btn.playing .pause { display: block; }
 
-  /* ===== KUSOGE SCREEN ===== */
-  #gameScreen, #clearScreen {
+  /* ===== EPIC KUSOGE ===== */
+  #gameScreen, #stageClearScreen, #finalClearScreen {
     position: fixed;
     inset: 0;
     z-index: 10;
@@ -230,44 +231,44 @@
     align-items: center;
     justify-content: center;
     font-family: "Press Start 2P", monospace;
-    background:
-      repeating-linear-gradient(45deg, #ff2ec4 0 40px, #14d1ff 40px 80px, #fff94d 80px 120px, #33ff5e 120px 160px);
-    background-size: 220% 220%;
-    animation: bgshift 6s linear infinite;
+    background: radial-gradient(ellipse at 50% 30%, color-mix(in srgb, var(--stage-color) 18%, #04040a), #04040a 75%);
+    transition: background 0.6s ease;
   }
-  @keyframes bgshift {
-    0% { background-position: 0% 0%; }
-    100% { background-position: 200% 200%; }
-  }
-  #gameScreen.show, #clearScreen.show { display: flex; }
+  #gameScreen.show, #stageClearScreen.show, #finalClearScreen.show { display: flex; }
 
-  .kusoge-title {
-    color: #fff;
-    font-size: 22px;
-    text-shadow: 3px 3px 0 #ff2ec4, -3px -3px 0 #14d1ff;
-    margin-bottom: 10px;
-    animation: blink 0.6s steps(1) infinite;
+  .stage-banner {
+    color: var(--stage-color);
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-shadow: 0 0 12px color-mix(in srgb, var(--stage-color) 70%, transparent);
+    margin-bottom: 6px;
+    text-align: center;
+    transition: color 0.6s ease, text-shadow 0.6s ease;
+  }
+  .kusoge-sub {
+    color: #cfc9d8;
+    font-size: 8.5px;
+    margin-bottom: 16px;
+    opacity: 0.8;
     text-align: center;
   }
-  @keyframes blink { 50% { opacity: 0.35; } }
 
-  .kusoge-sub {
-    color: #14120c;
-    background: #fff94d;
-    padding: 4px 10px;
-    font-size: 9px;
-    margin-bottom: 16px;
-    border: 3px solid #14120c;
+  .canvas-frame {
+    position: relative;
+    padding: 10px;
+    border-radius: 10px;
+    background: linear-gradient(160deg, rgba(255,255,255,0.08), rgba(255,255,255,0.01));
+    border: 1px solid color-mix(in srgb, var(--stage-color) 45%, transparent);
+    box-shadow: 0 0 50px color-mix(in srgb, var(--stage-color) 25%, transparent), 0 20px 60px rgba(0,0,0,0.6);
+    transition: border-color 0.6s ease, box-shadow 0.6s ease;
   }
-
   #gameCanvas {
-    background: #101018;
-    border: 6px solid #14120c;
-    box-shadow: 10px 10px 0 rgba(0,0,0,0.5);
+    display: block;
+    border-radius: 4px;
     image-rendering: pixelated;
-    max-width: 92vw;
+    max-width: 88vw;
   }
-  #gameCanvas.shake { animation: shake 0.25s; }
+  .canvas-frame.shake { animation: shake 0.25s; }
   @keyframes shake {
     0%,100% { transform: translate(0,0); }
     25% { transform: translate(-8px, 4px); }
@@ -278,61 +279,69 @@
   .hud {
     display: flex;
     justify-content: space-between;
-    width: min(640px, 92vw);
-    margin-top: 12px;
+    width: min(680px, 88vw);
+    margin-top: 14px;
     color: #fff;
     font-size: 10px;
-    text-shadow: 2px 2px 0 #14120c;
+    text-shadow: 2px 2px 0 rgba(0,0,0,0.6);
   }
   #lives { letter-spacing: 4px; }
   .progress-wrap {
-    width: min(640px, 92vw);
-    height: 14px;
-    border: 3px solid #14120c;
-    background: #fff;
+    width: min(680px, 88vw);
+    height: 10px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.08);
     margin-top: 8px;
+    overflow: hidden;
   }
-  #progressBar { height: 100%; width: 0%; background: repeating-linear-gradient(90deg, #ff2ec4 0 10px, #14d1ff 10px 20px); }
+  #progressBar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--stage-color), #fff);
+    transition: background 0.6s ease;
+  }
 
-  #clearScreen {
-    background: radial-gradient(circle at 50% 40%, #fff94d, #ff7a18 60%, #ff2ec4 100%);
-  }
+  /* stage clear / final clear */
   .clear-title {
-    font-size: 40px;
+    font-size: 28px;
     color: #fff;
-    text-shadow: 4px 4px 0 #ff2ec4, -4px -4px 0 #14d1ff, 0 0 30px #fff;
+    text-align: center;
+    text-shadow: 0 0 24px color-mix(in srgb, var(--stage-color) 80%, transparent), 3px 3px 0 rgba(0,0,0,0.5);
     animation: pop 0.6s cubic-bezier(0.34,1.56,0.64,1);
   }
+  #finalClearScreen .clear-title { font-size: 38px; }
   @keyframes pop {
     from { transform: scale(0); opacity: 0; }
     to { transform: scale(1); opacity: 1; }
   }
   .clear-sub {
-    margin-top: 16px;
-    color: #14120c;
-    font-size: 11px;
-    background: #fff;
-    padding: 10px 16px;
-    border: 3px solid #14120c;
+    margin-top: 18px;
+    color: #d8d2e6;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    text-align: center;
   }
-  .clear-actions { margin-top: 26px; display: flex; gap: 14px; }
+  .clear-actions { margin-top: 30px; display: flex; gap: 14px; }
   .kusoge-btn {
     font-family: "Press Start 2P", monospace;
     font-size: 10px;
-    padding: 12px 18px;
-    background: #14120c;
-    color: #fff94d;
-    border: 3px solid #fff;
+    padding: 13px 20px;
+    background: rgba(255,255,255,0.05);
+    color: #fff;
+    border: 1px solid var(--stage-color);
+    border-radius: 4px;
     cursor: pointer;
-    box-shadow: 5px 5px 0 rgba(0,0,0,0.4);
+    backdrop-filter: blur(6px);
+    transition: background 0.2s ease, transform 0.15s ease;
   }
-  .kusoge-btn:active { transform: translate(3px, 3px); box-shadow: 2px 2px 0 rgba(0,0,0,0.4); }
+  .kusoge-btn:hover { background: color-mix(in srgb, var(--stage-color) 25%, transparent); }
+  .kusoge-btn:active { transform: translateY(2px); }
 
-  .confetti-piece {
+  .firework-piece {
     position: absolute;
     top: -20px;
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
     z-index: 1;
     animation: fall linear forwards;
   }
@@ -375,11 +384,13 @@
     </button>
   </div>
 
-  <!-- ================= KUSOGE GAME SCREEN ================= -->
+  <!-- ================= GAME SCREEN ================= -->
   <div id="gameScreen">
-    <div class="kusoge-title">とんでも☆ジャンプクソゲー</div>
-    <div class="kusoge-sub">SPACEキー / タップ でジャンプ！ゴールを目指せ！</div>
-    <canvas id="gameCanvas" width="640" height="220"></canvas>
+    <div class="stage-banner" id="stageBanner">STAGE 1 / 3 — 黄昏の草原</div>
+    <div class="kusoge-sub">SPACE / タップ でジャンプ（空中でもう一度でダブルジャンプ）</div>
+    <div class="canvas-frame" id="canvasFrame">
+      <canvas id="gameCanvas" width="680" height="240"></canvas>
+    </div>
     <div class="hud">
       <span id="lives">❤️❤️❤️</span>
       <span id="distanceLabel">0%</span>
@@ -387,12 +398,18 @@
     <div class="progress-wrap"><div id="progressBar"></div></div>
   </div>
 
-  <!-- ================= CLEAR SCREEN ================= -->
-  <div id="clearScreen">
-    <div class="clear-title">CLEAR!!</div>
-    <div class="clear-sub">やったね！！クソゲーをクリアしました🎉</div>
+  <!-- ================= STAGE CLEAR ================= -->
+  <div id="stageClearScreen">
+    <div class="clear-title" id="stageClearTitle">STAGE 1 CLEAR!</div>
+    <div class="clear-sub">つぎのステージへ…</div>
+  </div>
+
+  <!-- ================= FINAL CLEAR ================= -->
+  <div id="finalClearScreen">
+    <div class="clear-title">ALL CLEAR!!</div>
+    <div class="clear-sub">3ステージ制覇！壮大な冒険、お疲れさまでした🎉</div>
     <div class="clear-actions">
-      <button class="kusoge-btn" id="retryBtn">もういちど</button>
+      <button class="kusoge-btn" id="retryBtn">最初から</button>
       <button class="kusoge-btn" id="homeBtn">ホームへ</button>
     </div>
   </div>
@@ -407,18 +424,20 @@
       spotlight.style.setProperty('--my', e.clientY + 'px');
     });
 
-    // ---- procedural ambient music (no external assets) ----
+    // ================= PROCEDURAL BGM (2-minute seamless loop) =================
     const NOTE = {
       C3:130.81, D3:146.83, E3:164.81, F3:174.61, G3:196.00, A3:220.00, B3:246.94,
       C4:261.63, D4:293.66, E4:329.63, F4:349.23, G4:392.00, A4:440.00, B4:493.88,
       C5:523.25, D5:587.33, E5:659.25, G5:783.99
     };
+    // 16 chords x 7.5s = 120s (2 min), loops seamlessly back to chord 1
     const progression = [
-      ['C3','G3','C4','E4','G4'],
-      ['A3','E3','A4','C5'],
-      ['F3','C4','F4','A4'],
-      ['G3','D4','G4','B4'],
+      ['A3','C4','E4','A4'], ['F3','A3','C4','F4'], ['C3','E3','G3','C4'], ['G3','B3','D4','G4'],
+      ['E3','G3','B3','E4'], ['A3','C4','E4','A4'], ['D3','F3','A3','D4'], ['G3','B3','D4','G4'],
+      ['A3','E4','A4','C5'], ['F3','C4','F4','A4'], ['C3','G3','C4','E4'], ['G3','D4','G4','B4'],
+      ['D3','A3','D4','F4'], ['E3','B3','E4','G4'], ['A3','C4','E4','A4'], ['A3','B3','E4','A4'],
     ];
+    const CHORD_DUR = 7.5;
 
     let audioCtx, master, delayNode, filter, analyser;
     let chordIndex = 0, chordTimer = null, isPlaying = false;
@@ -454,9 +473,28 @@
       master.gain.linearRampToValueAtTime(0.16, audioCtx.currentTime + 3);
     }
 
+    function sparkle(notes, now, dur) {
+      for (let i = 0; i < 4; i++) {
+        const t = now + (i / 4) * dur + Math.random() * 0.3;
+        const freq = NOTE[notes[Math.floor(Math.random() * notes.length)]] * 2;
+        const osc = audioCtx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        const g = audioCtx.createGain();
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.035, t + 0.03);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+        osc.connect(g);
+        g.connect(delayNode);
+        osc.start(t);
+        osc.stop(t + 0.7);
+      }
+    }
+
     function playChord(notes) {
       const now = audioCtx.currentTime;
-      const dur = 7.2;
+      const dur = CHORD_DUR;
+
       notes.forEach((n, i) => {
         const freq = NOTE[n];
         [1, 1.003].forEach((detune) => {
@@ -477,6 +515,23 @@
         });
       });
 
+      // slow bass drone, one octave below the root
+      const bassOsc = audioCtx.createOscillator();
+      bassOsc.type = 'sine';
+      bassOsc.frequency.value = NOTE[notes[0]] / 2;
+      const bassGain = audioCtx.createGain();
+      bassGain.gain.setValueAtTime(0, now);
+      bassGain.gain.linearRampToValueAtTime(0.05, now + 2);
+      bassGain.gain.linearRampToValueAtTime(0.05, now + dur - 2);
+      bassGain.gain.linearRampToValueAtTime(0, now + dur);
+      bassOsc.connect(bassGain);
+      bassGain.connect(filter);
+      bassOsc.start(now);
+      bassOsc.stop(now + dur + 0.1);
+
+      sparkle(notes, now, dur);
+
+      // slow filter breathing
       filter.frequency.cancelScheduledValues(now);
       filter.frequency.setValueAtTime(filter.frequency.value, now);
       filter.frequency.linearRampToValueAtTime(2400, now + dur / 2);
@@ -514,23 +569,20 @@
       cancelAnimationFrame(rafId);
       setTimeout(() => bars.forEach(b => b.style.height = '4px'), 300);
     }
-    musicBtn.addEventListener('click', () => {
+    function startMusic() {
+      if (isPlaying) return;
       if (!audioCtx) initAudio();
       if (audioCtx.state === 'suspended') audioCtx.resume();
+      isPlaying = true;
+      musicBtn.classList.add('playing');
+      barsWrap.classList.add('on');
+      tick();
+      chordTimer = setInterval(tick, CHORD_DUR * 1000);
+      animateBars();
+    }
+    musicBtn.addEventListener('click', () => { isPlaying ? stopMusic() : startMusic(); });
 
-      if (isPlaying) {
-        stopMusic();
-      } else {
-        isPlaying = true;
-        musicBtn.classList.add('playing');
-        barsWrap.classList.add('on');
-        tick();
-        chordTimer = setInterval(tick, 7200);
-        animateBars();
-      }
-    });
-
-    // ---- tiny sfx engine (shares the game's own audio context) ----
+    // ---- tiny sfx engine ----
     let sfxCtx;
     function beep(freq, dur, type, vol) {
       if (!sfxCtx) sfxCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -545,63 +597,179 @@
       osc.start();
       osc.stop(sfxCtx.currentTime + dur);
     }
-    const sfxJump = () => beep(520, 0.12, 'square', 0.1);
+    const sfxJump = (n) => beep(n > 1 ? 700 : 520, 0.12, 'square', 0.1);
     const sfxHit = () => beep(110, 0.3, 'sawtooth', 0.14);
-    const sfxClear = () => [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => beep(f, 0.25, 'square', 0.12), i * 120));
+    const sfxStageClear = () => [659, 880, 1046].forEach((f, i) => setTimeout(() => beep(f, 0.22, 'square', 0.11), i * 110));
+    const sfxAllClear = () => [523, 659, 784, 1046, 1318].forEach((f, i) => setTimeout(() => beep(f, 0.3, 'square', 0.12), i * 130));
 
-    // ================= KUSOGE GAME =================
+    // ================= EPIC 3-STAGE KUSOGE =================
     const homeScreen = document.getElementById('homeScreen');
     const gameScreen = document.getElementById('gameScreen');
-    const clearScreen = document.getElementById('clearScreen');
+    const stageClearScreen = document.getElementById('stageClearScreen');
+    const finalClearScreen = document.getElementById('finalClearScreen');
     const canvas = document.getElementById('gameCanvas');
+    const canvasFrame = document.getElementById('canvasFrame');
     const ctx = canvas.getContext('2d');
     const livesEl = document.getElementById('lives');
     const distanceLabel = document.getElementById('distanceLabel');
     const progressBar = document.getElementById('progressBar');
+    const stageBanner = document.getElementById('stageBanner');
+    const stageClearTitle = document.getElementById('stageClearTitle');
 
-    const GROUND_Y = 170;
-    const GRAVITY = 0.6;
+    const GROUND_Y = 190;
+    const GRAVITY = 0.62;
     const JUMP_VELOCITY = -11.5;
-    const SPEED = 4.2;
-    const GOAL_DISTANCE = 2600;
+    const MAX_JUMPS = 2;
 
-    let player, obstacles, distance, lives, gameRunning, nextSpawnAt, invincibleUntil, gameLoopId;
+    const STAGES = [
+      {
+        name: '第一幕：黄昏の草原', color: '#ffb56b', ground: '#1c3a26', groundLine: '#7ee787',
+        obstacle: '#5b3a24', decor: 'hills', goal: 3000, speed: 4.0,
+        spawnMin: 85, spawnMax: 145, tallChance: 0,
+      },
+      {
+        name: '第二幕：深夜のネオン街', color: '#14d1ff', ground: '#0e0a1c', groundLine: '#ff2ec4',
+        obstacle: '#ff6fd8', decor: 'city', goal: 4200, speed: 4.6,
+        spawnMin: 75, spawnMax: 128, tallChance: 0.32,
+      },
+      {
+        name: '第三幕：銀河のフィナーレ', color: '#ffd76b', ground: '#080418', groundLine: '#ffd76b',
+        obstacle: '#ff8b3d', decor: 'stars', goal: 5400, speed: 5.2,
+        spawnMin: 65, spawnMax: 112, tallChance: 0.42,
+      },
+    ];
 
-    function resetGame() {
-      player = { x: 70, y: GROUND_Y - 26, vy: 0, w: 26, h: 26, grounded: true };
+    let stageIdx, player, obstacles, distance, lives, gameRunning, nextSpawnAt, invincibleUntil, gameLoopId;
+    let decorOffset = 0, shootingStar = null, nextShootingStarAt = 0;
+
+    function applyStageTheme(stage) {
+      document.documentElement.style.setProperty('--stage-color', stage.color);
+      stageBanner.textContent = `STAGE ${stageIdx + 1} / 3 — ${stage.name}`;
+    }
+
+    function resetStage() {
+      const stage = STAGES[stageIdx];
+      player = { x: 76, y: GROUND_Y - 28, vy: 0, w: 28, h: 28, jumps: 0, grounded: true };
       obstacles = [];
       distance = 0;
       lives = 3;
       gameRunning = true;
       nextSpawnAt = 60;
       invincibleUntil = 0;
+      decorOffset = 0;
+      shootingStar = null;
+      nextShootingStarAt = 200 + Math.random() * 300;
       livesEl.textContent = '❤️'.repeat(lives);
       progressBar.style.width = '0%';
       distanceLabel.textContent = '0%';
+      applyStageTheme(stage);
     }
 
     function jump() {
       if (!gameRunning) return;
-      if (player.grounded) {
-        player.vy = JUMP_VELOCITY;
+      if (player.jumps < MAX_JUMPS) {
+        player.vy = JUMP_VELOCITY * (player.jumps === 0 ? 1 : 0.88);
+        player.jumps += 1;
         player.grounded = false;
-        sfxJump();
+        sfxJump(player.jumps);
       }
     }
 
     function spawnObstacle() {
-      const h = 24 + Math.random() * 28;
-      obstacles.push({ x: canvas.width + 20, y: GROUND_Y - h, w: 22, h });
+      const stage = STAGES[stageIdx];
+      const tall = Math.random() < stage.tallChance;
+      const h = tall ? 66 + Math.random() * 26 : 22 + Math.random() * 26;
+      obstacles.push({ x: canvas.width + 20, y: GROUND_Y - h, w: tall ? 24 : 22, h, tall });
+    }
+
+    function hashWave(n) {
+      const s = Math.sin(n * 12.9898) * 43758.5453;
+      return s - Math.floor(s);
+    }
+
+    function drawHills(stage) {
+      const layers = [
+        { amp: 14, base: GROUND_Y - 8, freq: 0.012, factor: 0.15, alpha: 0.35 },
+        { amp: 22, base: GROUND_Y + 2, freq: 0.008, factor: 0.3, alpha: 0.5 },
+        { amp: 30, base: GROUND_Y + 14, freq: 0.005, factor: 0.5, alpha: 0.75 },
+      ];
+      layers.forEach((l) => {
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height);
+        for (let x = 0; x <= canvas.width; x += 10) {
+          const y = l.base - Math.sin((x + decorOffset * l.factor) * l.freq) * l.amp - l.amp;
+          ctx.lineTo(x, y);
+        }
+        ctx.lineTo(canvas.width, canvas.height);
+        ctx.closePath();
+        ctx.fillStyle = `rgba(20,60,40,${l.alpha})`;
+        ctx.fill();
+      });
+    }
+
+    function drawCity(stage) {
+      [{ w: 46, factor: 0.25, alpha: 0.5 }, { w: 34, factor: 0.5, alpha: 0.85 }].forEach((layer) => {
+        const off = decorOffset * layer.factor;
+        const count = Math.ceil(canvas.width / layer.w) + 2;
+        for (let i = -1; i < count; i++) {
+          const colIndex = Math.floor((off + i * layer.w) / layer.w);
+          const h = 26 + hashWave(colIndex + layer.w) * 90;
+          const x = i * layer.w - (off % layer.w);
+          ctx.fillStyle = `rgba(15,8,30,${layer.alpha})`;
+          ctx.fillRect(x, GROUND_Y - h, layer.w - 5, h);
+          if (hashWave(colIndex * 3.1) > 0.45) {
+            ctx.fillStyle = 'rgba(255,143,216,0.8)';
+            ctx.fillRect(x + 6, GROUND_Y - h + 12, 4, 4);
+            ctx.fillRect(x + 16, GROUND_Y - h + 24, 4, 4);
+          }
+        }
+      });
+    }
+
+    function drawStars(stage) {
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.beginPath();
+      ctx.arc(canvas.width - 80, 46, 26, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,215,107,0.5)';
+      ctx.fill();
+
+      for (let i = 0; i < 70; i++) {
+        const x = ((i * 53 - decorOffset * 0.2) % (canvas.width + 40) + canvas.width + 40) % (canvas.width + 40) - 20;
+        const y = (hashWave(i) * (GROUND_Y - 20));
+        const tw = 0.4 + Math.abs(Math.sin(performance.now() / 400 + i));
+        ctx.fillStyle = `rgba(255,255,255,${0.25 + tw * 0.4})`;
+        ctx.fillRect(x, y, 2, 2);
+      }
+
+      nextShootingStarAt -= 1;
+      if (nextShootingStarAt <= 0 && !shootingStar) {
+        shootingStar = { x: canvas.width * 0.7, y: 20, life: 30 };
+        nextShootingStarAt = 260 + Math.random() * 260;
+      }
+      if (shootingStar) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(shootingStar.x, shootingStar.y);
+        ctx.lineTo(shootingStar.x + 26, shootingStar.y - 14);
+        ctx.stroke();
+        shootingStar.x -= 6;
+        shootingStar.y += 3.2;
+        shootingStar.life -= 1;
+        if (shootingStar.life <= 0) shootingStar = null;
+      }
     }
 
     function update() {
       if (!gameRunning) return;
+      const stage = STAGES[stageIdx];
 
-      distance += SPEED;
+      distance += stage.speed;
+      decorOffset += stage.speed;
       nextSpawnAt -= 1;
       if (nextSpawnAt <= 0) {
         spawnObstacle();
-        nextSpawnAt = 85 + Math.random() * 55;
+        nextSpawnAt = stage.spawnMin + Math.random() * (stage.spawnMax - stage.spawnMin);
       }
 
       player.vy += GRAVITY;
@@ -610,15 +778,16 @@
         player.y = GROUND_Y - player.h;
         player.vy = 0;
         player.grounded = true;
+        player.jumps = 0;
       }
 
-      obstacles.forEach(o => o.x -= SPEED);
+      obstacles.forEach(o => o.x -= stage.speed);
       obstacles = obstacles.filter(o => o.x + o.w > -10);
 
       const now = performance.now();
       if (now > invincibleUntil) {
         for (const o of obstacles) {
-          const pad = 6;
+          const pad = 7;
           const hit =
             player.x + pad < o.x + o.w &&
             player.x + player.w - pad > o.x &&
@@ -628,52 +797,57 @@
             lives -= 1;
             livesEl.textContent = '❤️'.repeat(Math.max(lives, 0)) + '🖤'.repeat(3 - Math.max(lives, 0));
             invincibleUntil = now + 1200;
-            canvas.classList.add('shake');
-            setTimeout(() => canvas.classList.remove('shake'), 250);
+            canvasFrame.classList.add('shake');
+            setTimeout(() => canvasFrame.classList.remove('shake'), 250);
             sfxHit();
             obstacles = obstacles.filter(ob => ob !== o);
-            if (lives <= 0) resetGame();
+            if (lives <= 0) resetStage();
             break;
           }
         }
       }
 
-      const pct = Math.min(100, Math.floor((distance / GOAL_DISTANCE) * 100));
+      const pct = Math.min(100, Math.floor((distance / stage.goal) * 100));
       progressBar.style.width = pct + '%';
       distanceLabel.textContent = pct + '%';
 
-      if (distance >= GOAL_DISTANCE) {
+      if (distance >= stage.goal) {
         gameRunning = false;
-        onClear();
+        onStageCleared();
       }
     }
 
     function draw() {
+      const stage = STAGES[stageIdx];
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      ctx.fillStyle = '#1a1a26';
+      if (stage.decor === 'hills') drawHills(stage);
+      else if (stage.decor === 'city') drawCity(stage);
+      else drawStars(stage);
+
+      ctx.fillStyle = stage.ground;
       ctx.fillRect(0, GROUND_Y, canvas.width, canvas.height - GROUND_Y);
-      ctx.fillStyle = '#33ff5e';
-      ctx.fillRect(0, GROUND_Y, canvas.width, 4);
+      ctx.fillStyle = stage.groundLine;
+      ctx.fillRect(0, GROUND_Y, canvas.width, 3);
 
       const blink = performance.now() < invincibleUntil && Math.floor(performance.now() / 80) % 2 === 0;
       if (!blink) {
-        ctx.fillStyle = '#ff2ec4';
+        ctx.fillStyle = stage.color;
         ctx.fillRect(player.x, player.y, player.w, player.h);
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(player.x + 6, player.y + 6, 5, 5);
-        ctx.fillRect(player.x + 16, player.y + 6, 5, 5);
+        ctx.fillStyle = '#14120c';
+        ctx.fillRect(player.x + 6, player.y + 7, 5, 5);
+        ctx.fillRect(player.x + 17, player.y + 7, 5, 5);
       }
 
-      ctx.fillStyle = '#fff94d';
+      ctx.fillStyle = stage.obstacle;
       obstacles.forEach(o => ctx.fillRect(o.x, o.y, o.w, o.h));
 
       const goalX = canvas.width - 30;
-      ctx.fillStyle = '#14d1ff';
-      ctx.fillRect(goalX, GROUND_Y - 90, 4, 90);
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = stage.color;
+      ctx.fillRect(goalX, GROUND_Y - 100, 4, 100);
       ctx.font = '9px "Press Start 2P"';
-      ctx.fillText('GOAL', goalX - 14, GROUND_Y - 94);
+      ctx.fillStyle = '#fff';
+      ctx.fillText('GOAL', goalX - 14, GROUND_Y - 104);
     }
 
     function loop() {
@@ -682,20 +856,11 @@
       if (gameRunning) gameLoopId = requestAnimationFrame(loop);
     }
 
-    function startGame() {
-      homeScreen.classList.add('hidden');
-      gameScreen.classList.add('show');
-      clearScreen.classList.remove('show');
-      resetGame();
-      cancelAnimationFrame(gameLoopId);
-      loop();
-    }
-
-    function spawnConfetti() {
-      const colors = ['#ff2ec4', '#14d1ff', '#fff94d', '#33ff5e', '#fff'];
-      for (let i = 0; i < 60; i++) {
+    function spawnConfetti(count) {
+      const colors = ['#ff2ec4', '#14d1ff', '#ffd76b', '#33ff5e', '#fff', STAGES[stageIdx] ? STAGES[stageIdx].color : '#fff'];
+      for (let i = 0; i < count; i++) {
         const piece = document.createElement('div');
-        piece.className = 'confetti-piece';
+        piece.className = 'firework-piece';
         piece.style.left = Math.random() * 100 + 'vw';
         piece.style.background = colors[Math.floor(Math.random() * colors.length)];
         piece.style.animationDuration = (2 + Math.random() * 2) + 's';
@@ -705,24 +870,45 @@
       }
     }
 
-    function onClear() {
+    function onStageCleared() {
       cancelAnimationFrame(gameLoopId);
-      gameScreen.classList.remove('show');
-      clearScreen.classList.add('show');
-      sfxClear();
-      spawnConfetti();
+      sfxStageClear();
+      spawnConfetti(35);
+
+      if (stageIdx < STAGES.length - 1) {
+        stageClearTitle.textContent = `STAGE ${stageIdx + 1} CLEAR!`;
+        gameScreen.classList.remove('show');
+        stageClearScreen.classList.add('show');
+        setTimeout(() => {
+          stageClearScreen.classList.remove('show');
+          stageIdx += 1;
+          gameScreen.classList.add('show');
+          resetStage();
+          loop();
+        }, 1800);
+      } else {
+        gameScreen.classList.remove('show');
+        finalClearScreen.classList.add('show');
+        sfxAllClear();
+        spawnConfetti(90);
+      }
+    }
+
+    function startGame() {
+      homeScreen.classList.add('hidden');
+      finalClearScreen.classList.remove('show');
+      stageClearScreen.classList.remove('show');
+      gameScreen.classList.add('show');
+      stageIdx = 0;
+      resetStage();
+      cancelAnimationFrame(gameLoopId);
+      loop();
     }
 
     document.getElementById('startBtn').addEventListener('click', startGame);
-    document.getElementById('retryBtn').addEventListener('click', () => {
-      clearScreen.classList.remove('show');
-      gameScreen.classList.add('show');
-      resetGame();
-      cancelAnimationFrame(gameLoopId);
-      loop();
-    });
+    document.getElementById('retryBtn').addEventListener('click', startGame);
     document.getElementById('homeBtn').addEventListener('click', () => {
-      clearScreen.classList.remove('show');
+      finalClearScreen.classList.remove('show');
       gameScreen.classList.remove('show');
       homeScreen.classList.remove('hidden');
     });
