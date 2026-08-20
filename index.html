@@ -222,7 +222,7 @@
   .music-btn.playing .pause { display: block; }
 
   /* ===== 3D ROLLING GOLF GAME ===== */
-  #gameScreen, #stageClearScreen, #finalClearScreen {
+  #gameScreen, #stageClearScreen, #finalClearScreen, #gameOverScreen {
     position: fixed;
     inset: 0;
     z-index: 10;
@@ -234,7 +234,7 @@
     background: radial-gradient(ellipse at 50% 30%, color-mix(in srgb, var(--stage-color) 18%, #04040a), #04040a 75%);
     transition: background 0.6s ease;
   }
-  #gameScreen.show, #stageClearScreen.show, #finalClearScreen.show { display: flex; }
+  #gameScreen.show, #stageClearScreen.show, #finalClearScreen.show, #gameOverScreen.show { display: flex; }
 
   .stage-banner {
     color: var(--stage-color);
@@ -290,7 +290,8 @@
     font-weight: 600;
     text-shadow: 1px 1px 0 rgba(0,0,0,0.6);
   }
-  .hud .wind-indicator, .hud .goal-indicator { display: flex; align-items: center; gap: 6px; }
+  .hud .wind-indicator, .hud .goal-indicator, .hud .hp-indicator { display: flex; align-items: center; gap: 6px; }
+  .hp-indicator { letter-spacing: 2px; }
   .arrow-icon { display: inline-block; transition: transform 0.2s linear; }
   .progress-wrap {
     width: min(760px, 92vw);
@@ -401,6 +402,7 @@
       <canvas id="gameCanvas" width="760" height="440"></canvas>
     </div>
     <div class="hud">
+      <span id="hp" class="hp-indicator">❤️❤️❤️</span>
       <span class="wind-indicator">🌬️ <span id="windArrow" class="arrow-icon">➤</span></span>
       <span class="goal-indicator"><span id="goalArrow" class="arrow-icon">➤</span> ⛳ <span id="distanceLabel">0%</span></span>
     </div>
@@ -420,6 +422,16 @@
     <div class="clear-actions">
       <button class="kusoge-btn" id="retryBtn">最初から</button>
       <button class="kusoge-btn" id="homeBtn">ホームへ</button>
+    </div>
+  </div>
+
+  <!-- ================= GAME OVER ================= -->
+  <div id="gameOverScreen">
+    <div class="clear-title" id="gameOverTitle">GAME OVER</div>
+    <div class="clear-sub" id="gameOverSub">やられてしまった…</div>
+    <div class="clear-actions">
+      <button class="kusoge-btn" id="gameOverRetryBtn">このホールをやり直す</button>
+      <button class="kusoge-btn" id="gameOverHomeBtn">ホームへ</button>
     </div>
   </div>
 
@@ -609,12 +621,31 @@
     const sfxHitRock = () => beep(140, 0.18, 'triangle', 0.13);
     const sfxStageClear = () => [659, 880, 1046].forEach((f, i) => setTimeout(() => beep(f, 0.22, 'square', 0.11), i * 110));
     const sfxAllClear = () => [523, 659, 784, 1046, 1318].forEach((f, i) => setTimeout(() => beep(f, 0.3, 'square', 0.12), i * 130));
+    const sfxJump = () => beep(600, 0.1, 'square', 0.1);
+    const sfxDamage = () => beep(180, 0.2, 'sawtooth', 0.13);
+    const sfxGameOver = () => [392, 330, 262, 196].forEach((f, i) => setTimeout(() => beep(f, 0.35, 'triangle', 0.12), i * 180));
+    function sfxBoom() {
+      if (!sfxCtx) sfxCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = sfxCtx.createOscillator();
+      const gain = sfxCtx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(320, sfxCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(50, sfxCtx.currentTime + 0.35);
+      gain.gain.setValueAtTime(0.18, sfxCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, sfxCtx.currentTime + 0.4);
+      osc.connect(gain);
+      gain.connect(sfxCtx.destination);
+      osc.start();
+      osc.stop(sfxCtx.currentTime + 0.4);
+    }
 
     // ================= 3D ROLLING GOLF GAME =================
     const homeScreen = document.getElementById('homeScreen');
     const gameScreen = document.getElementById('gameScreen');
     const stageClearScreen = document.getElementById('stageClearScreen');
     const finalClearScreen = document.getElementById('finalClearScreen');
+    const gameOverScreen = document.getElementById('gameOverScreen');
+    const gameOverSub = document.getElementById('gameOverSub');
     const canvas = document.getElementById('gameCanvas');
     const canvasFrame = document.getElementById('canvasFrame');
     const distanceLabel = document.getElementById('distanceLabel');
@@ -623,44 +654,61 @@
     const stageClearTitle = document.getElementById('stageClearTitle');
     const windArrowEl = document.getElementById('windArrow');
     const goalArrowEl = document.getElementById('goalArrow');
+    const hpEl = document.getElementById('hp');
+    const kusogeSub = document.querySelector('.kusoge-sub');
 
     const STAGES = [
       {
         name: '第一幕：グリーンパーク', color: '#ffb56b',
+        hint: 'SPACE/タップでジャンプして谷を飛び越えろ！岩に当たるとダメージ！',
         sky: 0x1a2a1c, fog: 0x0c1610, ground: 0x2f6b3f,
         bounds: { x: 14, z: 24 }, start: { x: 0, z: 20 }, goal: { x: 0, z: -20 },
         wind: { angle: Math.PI * 0.15, strength: 0.6, oscAmp: 0.3, oscSpeed: 0.4, swirl: 0 },
         rocks: [
-          { x: -6, z: 12, s: 1.1 }, { x: 5, z: 9, s: 0.9 }, { x: -3, z: 2, s: 1.3 },
-          { x: 8, z: -3, s: 1.0 }, { x: -8, z: -8, s: 1.2 }, { x: 2, z: -14, s: 1.0 },
+          { x: -6, z: 14, s: 1.1 }, { x: 5, z: 11, s: 0.9 }, { x: -8, z: -2, s: 1.2 },
+          { x: 7, z: -4, s: 1.0 }, { x: -3, z: -17, s: 1.0 },
+        ],
+        gaps: [
+          { x1: -14, x2: 14, z1: 2, z2: 6 },
+          { x1: -14, x2: 14, z1: -10, z2: -13 },
         ],
       },
       {
-        name: '第二幕：砂漠の谷', color: '#14d1ff',
+        name: '第二幕：ダイナマイト渓谷', color: '#14d1ff',
+        hint: '地雷を踏むと大ジャンプ！谷をぶっ飛んでゴールを目指せ！',
         sky: 0x2a1c12, fog: 0x160e08, ground: 0x8a6a3c,
         bounds: { x: 14, z: 28 }, start: { x: 0, z: 23 }, goal: { x: 0, z: -23 },
         wind: { angle: -Math.PI / 2, strength: 1.15, oscAmp: 0.6, oscSpeed: 0.6, swirl: 0 },
         rocks: [
-          { x: -9, z: 16, s: 1.4 }, { x: 4, z: 14, s: 1.0 }, { x: -2, z: 9, s: 1.2 },
-          { x: 9, z: 6, s: 1.5 }, { x: -7, z: 0, s: 1.1 }, { x: 6, z: -4, s: 1.3 },
-          { x: -3, z: -10, s: 1.0 }, { x: 10, z: -14, s: 1.2 }, { x: -10, z: -18, s: 1.4 },
+          { x: -11, z: 14, s: 1.3 }, { x: 11, z: 14, s: 1.2 }, { x: -10, z: -19, s: 1.2 },
+        ],
+        gaps: [
+          { x1: -14, x2: 14, z1: -1.5, z2: 4 },
+        ],
+        mines: [
+          { x: -5, z: 7 }, { x: 5, z: 7 }, { x: 0, z: -14 },
         ],
       },
       {
-        name: '第三幕：隕石ベルト', color: '#ffd76b',
-        sky: 0x0a0818, fog: 0x050414, ground: 0x141225,
-        bounds: { x: 16, z: 32 }, start: { x: 0, z: 26 }, goal: { x: 0, z: -26 },
-        wind: { angle: 0, strength: 1.4, oscAmp: 1.0, oscSpeed: 0.5, swirl: 0.25 },
+        name: '第三幕：リバー・シャークベイ', color: '#ffd76b',
+        hint: '石を飛び移って川を渡れ！サメに食べられるとゲームオーバー！',
+        sky: 0x0a0818, fog: 0x050414, ground: 0x14211f,
+        bounds: { x: 16, z: 30 }, start: { x: 0, z: 25 }, goal: { x: 0, z: -25 },
+        wind: { angle: 0, strength: 0, oscAmp: 0, oscSpeed: 0, swirl: 0 },
         rocks: [
-          { x: -10, z: 20, s: 1.5 }, { x: 5, z: 17, s: 1.2 }, { x: -4, z: 12, s: 1.6 },
-          { x: 11, z: 9, s: 1.1 }, { x: -12, z: 4, s: 1.3 }, { x: 2, z: 0, s: 1.4 },
-          { x: -6, z: -6, s: 1.2 }, { x: 9, z: -11, s: 1.5 }, { x: -9, z: -16, s: 1.1 },
-          { x: 4, z: -20, s: 1.3 },
+          { x: -9, z: 18, s: 1.1 }, { x: 9, z: -19, s: 1.1 },
         ],
-        meteors: [
-          { baseX: -5, z: -2, amp: 6, speed: 0.5, s: 1.3 },
-          { baseX: 7, z: -14, amp: 5, speed: 0.4, s: 1.1 },
-        ],
+        river: {
+          z1: -3, z2: 3,
+          stones: [
+            { x: -8, z: 0, r: 1.0, height: 0.3 },
+            { x: -4, z: 0, r: 1.0, height: 0.3 },
+            { x: 0, z: 0, r: 1.0, height: 0.3 },
+            { x: 4, z: 0, r: 1.0, height: 0.3 },
+            { x: 8, z: 0, r: 1.0, height: 0.3 },
+          ],
+          strikeSpots: [-10, -6, -2, 2, 6, 10],
+        },
       },
     ];
 
@@ -668,13 +716,17 @@
     const CUBE_HALF = 0.6;
     const CAPTURE_RADIUS = 1.2;
     const ACCEL = 16, MAX_SPEED = 8, DAMPING = 0.9;
+    const GRAVITY = 24, JUMP_VELOCITY = 9.5;
+    const HP_MAX = 3;
 
     let renderer, scene, camera, clock;
-    let player, stageGroup, activeRocks, windParticles;
+    let player, stageGroup, activeRocks, windParticles, mineList, sharkMesh, rippleMesh, sharkState;
     let stageIdx = 0, velocity, cleared, startPos, goalPos, bounds, windCfg;
-    let gameRunning = false, gameLoopStarted = false;
+    let gameRunning = false;
+    let hp = HP_MAX, grounded = true, jumpRequested = false;
+    let invincibleUntil = 0, launchLockUntil = 0;
     const input = { x: 0, z: 0 };
-    let touchActive = false, touchStartX = 0, touchStartY = 0;
+    let touchActive = false, touchStartX = 0, touchStartY = 0, touchStartTime = 0;
 
     function init3D() {
       renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -717,6 +769,23 @@
         windParticles.push({ mesh, life: 0 });
       }
 
+      const sharkMat = new THREE.MeshStandardMaterial({ color: 0x5c6b78, roughness: 0.5 });
+      sharkMesh = new THREE.Group();
+      const sharkBody = new THREE.Mesh(new THREE.ConeGeometry(0.7, 2.2, 10), sharkMat);
+      sharkBody.rotation.x = Math.PI;
+      sharkMesh.add(sharkBody);
+      const sharkFin = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.6, 6), sharkMat);
+      sharkFin.position.set(0, 0.6, 0);
+      sharkMesh.add(sharkFin);
+      sharkMesh.visible = false;
+      scene.add(sharkMesh);
+
+      const rippleMat = new THREE.MeshBasicMaterial({ color: 0xbfe8ff, transparent: true, opacity: 0.6, side: THREE.DoubleSide });
+      rippleMesh = new THREE.Mesh(new THREE.RingGeometry(0.6, 1.0, 24), rippleMat);
+      rippleMesh.rotation.x = -Math.PI / 2;
+      rippleMesh.visible = false;
+      scene.add(rippleMesh);
+
       window.addEventListener('keydown', onKeyDown);
       window.addEventListener('keyup', onKeyUp);
       canvas.addEventListener('pointerdown', onPointerDown);
@@ -729,6 +798,7 @@
       if (e.code === 'KeyS' || e.code === 'ArrowDown') input.z = 1;
       if (e.code === 'KeyA' || e.code === 'ArrowLeft') input.x = -1;
       if (e.code === 'KeyD' || e.code === 'ArrowRight') input.x = 1;
+      if (e.code === 'Space') { e.preventDefault(); jumpRequested = true; }
     }
     function onKeyUp(e) {
       if ((e.code === 'KeyW' || e.code === 'ArrowUp') && input.z < 0) input.z = 0;
@@ -740,6 +810,7 @@
       touchActive = true;
       touchStartX = e.clientX;
       touchStartY = e.clientY;
+      touchStartTime = performance.now();
     }
     function onPointerMove(e) {
       if (!touchActive) return;
@@ -750,7 +821,10 @@
       input.x = (dx / mag) * clamp;
       input.z = (dy / mag) * clamp;
     }
-    function onPointerUp() {
+    function onPointerUp(e) {
+      const heldMs = performance.now() - touchStartTime;
+      const dist = Math.hypot(e.clientX - touchStartX, e.clientY - touchStartY);
+      if (heldMs < 250 && dist < 12) jumpRequested = true;
       touchActive = false;
       input.x = 0;
       input.z = 0;
@@ -813,12 +887,46 @@
         activeRocks.push({ mesh, radius: 0.9 * r.s * 0.85 });
       });
 
-      (stage.meteors || []).forEach((m) => {
-        const mesh = makeRockMesh(m.s);
-        mesh.position.set(m.baseX, 0.6 * m.s, m.z);
-        stageGroup.add(mesh);
-        activeRocks.push({ mesh, radius: 0.9 * m.s * 0.85, drift: m });
+      (stage.gaps || []).forEach((g) => {
+        const w = g.x2 - g.x1, d = g.z2 - g.z1;
+        const pitMat = new THREE.MeshBasicMaterial({ color: 0x090705 });
+        const pit = new THREE.Mesh(new THREE.PlaneGeometry(w, d), pitMat);
+        pit.rotation.x = -Math.PI / 2;
+        pit.position.set(g.x1 + w / 2, 0.015, g.z1 + d / 2);
+        stageGroup.add(pit);
       });
+
+      mineList = [];
+      (stage.mines || []).forEach((m) => {
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2e, roughness: 0.7 });
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.5, 0.25, 12), bodyMat);
+        body.position.set(m.x, 0.12, m.z);
+        body.castShadow = true;
+        stageGroup.add(body);
+        const lightMat = new THREE.MeshStandardMaterial({ color: 0xff2e2e, emissive: 0xff2e2e, emissiveIntensity: 0.8 });
+        const light = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), lightMat);
+        light.position.set(m.x, 0.28, m.z);
+        stageGroup.add(light);
+        mineList.push({ x: m.x, z: m.z, used: false, group: [body, light], light });
+      });
+
+      if (stage.river) {
+        const r = stage.river;
+        const waterMat = new THREE.MeshStandardMaterial({ color: 0x1c5a8c, roughness: 0.3, transparent: true, opacity: 0.85 });
+        const water = new THREE.Mesh(new THREE.PlaneGeometry(stage.bounds.x * 2, r.z2 - r.z1), waterMat);
+        water.rotation.x = -Math.PI / 2;
+        water.position.set(0, 0.015, (r.z1 + r.z2) / 2);
+        stageGroup.add(water);
+
+        const stoneMat = new THREE.MeshStandardMaterial({ color: 0x9c8355, roughness: 0.9 });
+        r.stones.forEach((st) => {
+          const stone = new THREE.Mesh(new THREE.CylinderGeometry(st.r, st.r * 1.05, 0.3, 16), stoneMat);
+          stone.position.set(st.x, st.height / 2, st.z);
+          stone.castShadow = true;
+          stone.receiveShadow = true;
+          stageGroup.add(stone);
+        });
+      }
 
       const holeMat = new THREE.MeshBasicMaterial({ color: 0x08060c });
       const hole = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.15, 24), holeMat);
@@ -848,15 +956,137 @@
 
       player.position.set(startPos.x, CUBE_HALF, startPos.z);
       player.quaternion.identity();
+      player.material.color.set(stage.color);
       velocity = new THREE.Vector3(0, 0, 0);
       cleared = false;
+      grounded = true;
+      jumpRequested = false;
+      invincibleUntil = 0;
+      launchLockUntil = 0;
+      hp = HP_MAX;
+      hpEl.textContent = '❤️'.repeat(hp);
+
+      sharkMesh.visible = false;
+      rippleMesh.visible = false;
+      sharkState = { timer: 2 + Math.random() * 2, active: null };
 
       document.documentElement.style.setProperty('--stage-color', stage.color);
       stageBanner.textContent = `STAGE ${idx + 1} / 3 — ${stage.name}`;
+      kusogeSub.textContent = stage.hint;
       progressBar.style.width = '0%';
       distanceLabel.textContent = '0%';
       camera.position.set(startPos.x, CUBE_HALF + 6, startPos.z + 9);
       camera.lookAt(startPos.x, CUBE_HALF, startPos.z - 4);
+    }
+
+    function getGroundHeight(stage, x, z) {
+      if (stage.gaps) {
+        for (const g of stage.gaps) {
+          if (x >= g.x1 && x <= g.x2 && z >= g.z1 && z <= g.z2) return null;
+        }
+      }
+      if (stage.river) {
+        const r = stage.river;
+        if (z >= r.z1 && z <= r.z2) {
+          for (const st of r.stones) {
+            if (Math.hypot(x - st.x, z - st.z) < st.r) return st.height;
+          }
+          return null;
+        }
+      }
+      return 0;
+    }
+
+    function spawnExplosionFX(x, z) {
+      const geo = new THREE.SphereGeometry(0.4, 12, 12);
+      const mat = new THREE.MeshBasicMaterial({ color: 0xffaa33, transparent: true, opacity: 0.9 });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(x, 0.6, z);
+      scene.add(mesh);
+      const startTime = performance.now();
+      function anim() {
+        const p = (performance.now() - startTime) / 450;
+        if (p >= 1) { scene.remove(mesh); geo.dispose(); mat.dispose(); return; }
+        mesh.scale.setScalar(1 + p * 4);
+        mat.opacity = 0.9 * (1 - p);
+        requestAnimationFrame(anim);
+      }
+      anim();
+    }
+
+    function triggerMine(m) {
+      m.used = true;
+      m.group.forEach((mesh) => { mesh.visible = false; });
+      spawnExplosionFX(m.x, m.z);
+      sfxBoom();
+      const dx = goalPos.x - m.x, dz = goalPos.z - m.z;
+      const dmag = Math.hypot(dx, dz) || 1;
+      velocity.x = (dx / dmag) * 11;
+      velocity.z = (dz / dmag) * 11;
+      velocity.y = 15;
+      grounded = false;
+      launchLockUntil = performance.now() + 450;
+      canvasFrame.classList.add('shake');
+      setTimeout(() => canvasFrame.classList.remove('shake'), 300);
+    }
+
+    function takeDamage(amount, instaKill) {
+      const now = performance.now();
+      if (!instaKill && now < invincibleUntil) return;
+      hp = instaKill ? 0 : Math.max(0, hp - amount);
+      hpEl.textContent = '❤️'.repeat(hp) + '🖤'.repeat(HP_MAX - hp);
+      invincibleUntil = now + (instaKill ? 0 : 1000);
+      canvasFrame.classList.add('shake');
+      setTimeout(() => canvasFrame.classList.remove('shake'), 200);
+      if (hp <= 0) {
+        gameOver(instaKill ? 'shark' : 'hazard');
+      } else {
+        sfxDamage();
+      }
+    }
+
+    function handleFallHazard() {
+      takeDamage(1, false);
+      if (hp > 0) {
+        player.position.set(startPos.x, CUBE_HALF, startPos.z);
+        velocity.set(0, 0, 0);
+        grounded = true;
+      }
+    }
+
+    function updateSharks(dt, stage) {
+      const s = sharkState;
+      s.timer -= dt;
+      if (!s.active && s.timer <= 0) {
+        const x = stage.river.strikeSpots[Math.floor(Math.random() * stage.river.strikeSpots.length)];
+        s.active = { x, phase: 'rise', t: 0 };
+      }
+      if (!s.active) return;
+      const a = s.active;
+      a.t += dt;
+      if (a.phase === 'rise') {
+        const p = Math.min(1, a.t / 0.5);
+        sharkMesh.visible = true;
+        sharkMesh.position.set(a.x, -1.5 + p * 2.3, 0);
+        rippleMesh.visible = true;
+        rippleMesh.position.set(a.x, 0.02, 0);
+        rippleMesh.scale.setScalar(0.4 + p * 1.6);
+        rippleMesh.material.opacity = 0.6 * (1 - p * 0.4);
+        if (p >= 1) { a.phase = 'bite'; a.t = 0; }
+      } else if (a.phase === 'bite') {
+        rippleMesh.visible = false;
+        const dPlayer = Math.hypot(player.position.x - a.x, player.position.z - 0);
+        if (dPlayer < 1.3) takeDamage(HP_MAX, true);
+        if (a.t > 0.4) { a.phase = 'sink'; a.t = 0; }
+      } else {
+        const p = Math.min(1, a.t / 0.4);
+        sharkMesh.position.y = 0.8 - p * 2.3;
+        if (p >= 1) {
+          sharkMesh.visible = false;
+          s.active = null;
+          s.timer = 2.5 + Math.random() * 2;
+        }
+      }
     }
 
     function updateWind(t) {
@@ -889,15 +1119,20 @@
 
     function update(dt) {
       if (!gameRunning || cleared) return;
+      const stage = STAGES[stageIdx];
       const t = clock.elapsedTime;
       const wind = updateWind(t);
+      const now = performance.now();
+      const launched = now < launchLockUntil;
 
-      const mag = Math.hypot(input.x, input.z);
-      if (mag > 0.001) {
-        const nx = input.x / Math.max(mag, 1);
-        const nz = input.z / Math.max(mag, 1);
-        velocity.x += nx * ACCEL * dt;
-        velocity.z += nz * ACCEL * dt;
+      if (!launched) {
+        const mag = Math.hypot(input.x, input.z);
+        if (mag > 0.001) {
+          const nx = input.x / Math.max(mag, 1);
+          const nz = input.z / Math.max(mag, 1);
+          velocity.x += nx * ACCEL * dt;
+          velocity.z += nz * ACCEL * dt;
+        }
       }
       velocity.x += wind.x * dt;
       velocity.z += wind.z * dt;
@@ -912,15 +1147,54 @@
         velocity.z = (velocity.z / speed) * MAX_SPEED;
       }
 
+      velocity.y -= GRAVITY * dt;
+
       const prevX = player.position.x, prevZ = player.position.z;
       player.position.x += velocity.x * dt;
       player.position.z += velocity.z * dt;
+      player.position.y += velocity.y * dt;
 
       const marginX = bounds.x - 0.8, marginZ = bounds.z - 0.8;
       if (player.position.x > marginX) { player.position.x = marginX; velocity.x = Math.min(velocity.x, 0); }
       if (player.position.x < -marginX) { player.position.x = -marginX; velocity.x = Math.max(velocity.x, 0); }
       if (player.position.z > marginZ) { player.position.z = marginZ; velocity.z = Math.min(velocity.z, 0); }
       if (player.position.z < -marginZ) { player.position.z = -marginZ; velocity.z = Math.max(velocity.z, 0); }
+
+      const floorY = getGroundHeight(stage, player.position.x, player.position.z);
+      if (floorY !== null) {
+        if (player.position.y - CUBE_HALF <= floorY + 0.001 && velocity.y <= 0) {
+          player.position.y = floorY + CUBE_HALF;
+          velocity.y = 0;
+          grounded = true;
+        } else {
+          grounded = false;
+        }
+      } else {
+        grounded = false;
+        if (player.position.y < -2.2) {
+          handleFallHazard();
+          if (!gameRunning) return;
+        }
+      }
+
+      if (jumpRequested && grounded && !launched) {
+        velocity.y = JUMP_VELOCITY;
+        grounded = false;
+        sfxJump();
+      }
+      jumpRequested = false;
+
+      if (stage.mines) {
+        mineList.forEach((m) => {
+          if (m.used) return;
+          const d = Math.hypot(player.position.x - m.x, player.position.z - m.z);
+          if (d < 1.0) triggerMine(m);
+        });
+      }
+      if (stage.river) {
+        updateSharks(dt, stage);
+        if (!gameRunning) return;
+      }
 
       activeRocks.forEach((r) => {
         if (r.drift) {
@@ -940,11 +1214,11 @@
             velocity.x -= 1.6 * vn * nx;
             velocity.z -= 1.6 * vn * nz;
           }
-          canvasFrame.classList.add('shake');
-          setTimeout(() => canvasFrame.classList.remove('shake'), 200);
           sfxHitRock();
+          takeDamage(1, false);
         }
       });
+      if (!gameRunning) return;
 
       const rdx = player.position.x - prevX, rdz = player.position.z - prevZ;
       const rollDist = Math.hypot(rdx, rdz);
@@ -1029,11 +1303,29 @@
       }
     }
 
+    function gameOver(reason) {
+      gameRunning = false;
+      sfxGameOver();
+      gameOverSub.textContent = reason === 'shark' ? 'サメに食べられてしまった…！' : 'ダメージを受けすぎてしまった…！';
+      gameScreen.classList.remove('show');
+      gameOverScreen.classList.add('show');
+    }
+
+    function retryStage() {
+      gameOverScreen.classList.remove('show');
+      gameScreen.classList.add('show');
+      input.x = 0; input.z = 0;
+      buildStage(stageIdx);
+      gameRunning = true;
+      loop();
+    }
+
     function startGame() {
       if (!renderer) init3D();
       homeScreen.classList.add('hidden');
       finalClearScreen.classList.remove('show');
       stageClearScreen.classList.remove('show');
+      gameOverScreen.classList.remove('show');
       gameScreen.classList.add('show');
       stageIdx = 0;
       input.x = 0; input.z = 0;
@@ -1048,6 +1340,13 @@
     document.getElementById('homeBtn').addEventListener('click', () => {
       gameRunning = false;
       finalClearScreen.classList.remove('show');
+      gameScreen.classList.remove('show');
+      homeScreen.classList.remove('hidden');
+    });
+    document.getElementById('gameOverRetryBtn').addEventListener('click', retryStage);
+    document.getElementById('gameOverHomeBtn').addEventListener('click', () => {
+      gameRunning = false;
+      gameOverScreen.classList.remove('show');
       gameScreen.classList.remove('show');
       homeScreen.classList.remove('hidden');
     });
