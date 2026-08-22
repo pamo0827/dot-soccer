@@ -228,8 +228,9 @@
 
   // ボールを追いかける横パン（左右方向のみ、ゆっくり追従）
   const camera = { panY: CY };
+  const PAN_STRENGTH = 0.35; // 1.0だとタッチライン際でピッチが画面外に出てしまうため弱める
   function updateCamera(dt) {
-    const target = clamp(ball.y, PY0, PY1);
+    const target = CY + (clamp(ball.y, PY0, PY1) - CY) * PAN_STRENGTH;
     const k = 1 - Math.pow(0.001, dt); // 追従の滑らかさ（1秒でほぼ収束）
     camera.panY += (target - camera.panY) * k;
   }
@@ -362,12 +363,14 @@
   }, { passive: false });
   window.addEventListener('keyup', (e) => held.delete(e.code));
 
+  // カメラが「ゴール裏から見た画角」になっているため、キー入力は画面上の見た目の方向
+  // (上=奥へ, 下=手前へ, 左右=画面の左右) に合わせてワールド座標(x=奥行き, y=左右)へ変換する
   function userMoveVector() {
     let x = 0, y = 0;
-    if (held.has('ArrowLeft') || held.has('KeyA')) x -= 1;
-    if (held.has('ArrowRight') || held.has('KeyD')) x += 1;
-    if (held.has('ArrowUp') || held.has('KeyW')) y -= 1;
-    if (held.has('ArrowDown') || held.has('KeyS')) y += 1;
+    if (held.has('ArrowUp') || held.has('KeyW')) x += 1;    // 画面奥へ
+    if (held.has('ArrowDown') || held.has('KeyS')) x -= 1;   // 画面手前へ
+    if (held.has('ArrowLeft') || held.has('KeyA')) y -= 1;   // 画面左へ
+    if (held.has('ArrowRight') || held.has('KeyD')) y += 1;  // 画面右へ
     return normalize(x, y);
   }
 
