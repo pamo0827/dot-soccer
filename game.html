@@ -1065,6 +1065,7 @@
       p.vx = 0; p.vy = 0;
     }
     if (isCarrier(p)) p.carryTime += dt;
+    if (p.tackleCooldown > 0) p.tackleCooldown -= dt;
   }
 
   function sendGuestAction(action) {
@@ -1128,6 +1129,7 @@
       if (net.role !== 'host') return;
       if (msg.payload.action === 'shoot') doShoot(guestSlot);
       else if (msg.payload.action === 'pass') doPass(guestSlot);
+      else if (msg.payload.action === 'tackle') doTackle(guestSlot);
     });
     net.channel.on('broadcast', { event: 'snapshot' }, (msg) => {
       if (net.role === 'guest') applySnapshot(msg.payload);
