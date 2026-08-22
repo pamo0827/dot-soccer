@@ -346,26 +346,39 @@
   const NEAR_HALF_WIDTH = W / 2 - 4; // 画面いっぱいに近い横幅を使う
   const WORLD_TO_NEAR = (NEAR_HALF_WIDTH * 2) / PH;
 
+  // 奥行き方向もボールに追従する簡易チェイスカメラ（camera.depthCenterがボールのx位置を追う）
+  const VIEW_HALF_DEPTH = 130; // カメラの手前〜奥に見える範囲の半分（ワールド単位）
   function depthFrac(x) {
-    return (x - PX0) / PW; // 0=手前(PX0, カメラ側), 1=奥(PX1)
+    const near = camera.depthCenter - VIEW_HALF_DEPTH;
+    return (x - near) / (VIEW_HALF_DEPTH * 2); // 0=手前(カメラ側), 1=奥
   }
 
-  // ボールを追いかける横パン（左右方向のみ、ゆっくり追従）
-  const camera = { panY: CY };
+  // ボールを追いかけるカメラ（左右パン・奥行きドリー、ともにゆっくり追従）
+  const camera = { panY: CY, depthCenter: CX };
   const PAN_STRENGTH = 0.35; // 1.0だとタッチライン際でピッチが画面外に出てしまうため弱める
+  const PAN_TAU = 0.12; // 追従の速さ（小さいほど素早く追いつく）
   function updateCamera(dt) {
-    const target = CY + (clamp(ball.y, PY0, PY1) - CY) * PAN_STRENGTH;
-    const k = 1 - Math.pow(0.001, dt); // 追従の滑らかさ（1秒でほぼ収束）
-    camera.panY += (target - camera.panY) * k;
+    const targetY = CY + (clamp(ball.y, PY0, PY1) - CY) * PAN_STRENGTH;
+    const targetX = clamp(ball.x, PX0, PX1);
+    const k = 1 - Math.exp(-dt / PAN_TAU);
+    camera.panY += (targetY - camera.panY) * k;
+    camera.depthCenter += (targetX - camera.depthCenter) * k;
   }
+
+  // 画面中心を基準にズームして視野を狭める（望遠寄りの画角にする）
+  const CAMERA_ZOOM = 1.6;
+  const ZOOM_FOCUS_X = SCREEN_CENTER_X;
+  const ZOOM_FOCUS_Y = (SCREEN_TOP + SCREEN_BOTTOM) / 2;
 
   function projectWithDepth(x, y, depth01) {
     const d = 1 - depth01; // 0=奥, 1=手前 の従来表記に合わせる
     const s = FAR_SCALE + (1 - FAR_SCALE) * d;
+    const rawX = SCREEN_CENTER_X + (y - camera.panY) * WORLD_TO_NEAR * s;
+    const rawY = SCREEN_TOP + d * (SCREEN_BOTTOM - SCREEN_TOP);
     return {
-      x: SCREEN_CENTER_X + (y - camera.panY) * WORLD_TO_NEAR * s,
-      y: SCREEN_TOP + d * (SCREEN_BOTTOM - SCREEN_TOP),
-      scale: s,
+      x: ZOOM_FOCUS_X + (rawX - ZOOM_FOCUS_X) * CAMERA_ZOOM,
+      y: ZOOM_FOCUS_Y + (rawY - ZOOM_FOCUS_Y) * CAMERA_ZOOM,
+      scale: s * CAMERA_ZOOM,
     };
   }
 
@@ -1016,6 +1029,33 @@
     ctx.fillText(msg, SCREEN_CENTER_X, H / 2);
   }
 
+  const SHOOT_HINT_RANGE = 130; // このぐらい近づいたら「シュートしろ」表示
+
+  function myControlledPlayer() {
+    return (net.role === 'guest') ? guestSlot : userPlayer;
+  }
+
+  function drawShootHint() {
+    if (match.state !== 'playing') return;
+    const me = myControlledPlayer();
+    if (!isCarrier(me)) return;
+    const goalX = opponentGoalX(me.team);
+    if (Math.abs(goalX - me.x) > SHOOT_HINT_RANGE) return;
+
+    const proj = project(me.x, me.y);
+    const bob = Math.sin(performance.now() / 180) * 2;
+    const label = 'Zでシュート！';
+    ctx.font = 'bold 11px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const textW = ctx.measureText(label).width;
+    const boxX = proj.x - textW / 2 - 5, boxY = proj.y - 40 * proj.scale - 14 + bob;
+    ctx.fillStyle = 'rgba(249,115,98,0.9)';
+    ctx.fillRect(boxX, boxY, textW + 10, 16);
+    ctx.fillStyle = '#fff';
+    ctx.fillText(label, boxX + (textW + 10) / 2, boxY + 8);
+  }
+
   function render(dt) {
     for (const p of allPlayers) updatePlayerAnim(p, dt);
     drawPitch();
@@ -1024,6 +1064,7 @@
     for (const d of drawables) {
       if (d === ball) drawBall(); else drawPlayer(d);
     }
+    drawShootHint();
     drawHUD();
   }
 
@@ -1078,6 +1119,7 @@
       half: match.half, timeLeft: match.timeLeft,
       scoreA: match.scoreA, scoreB: match.scoreB, state: match.state,
       ball: { x: ball.x, y: ball.y },
+      carrierIndex: ball.carrier ? allPlayers.indexOf(ball.carrier) : -1,
       players: allPlayers.map(p => ({
         x: p.x, y: p.y, facing: p.facing,
         isUser: !!p.isUser, markerColor: p.markerColor || null,
@@ -1089,6 +1131,7 @@
     match.half = s.half; match.timeLeft = s.timeLeft;
     match.scoreA = s.scoreA; match.scoreB = s.scoreB; match.state = s.state;
     ball.x = s.ball.x; ball.y = s.ball.y;
+    ball.carrier = (s.carrierIndex >= 0) ? allPlayers[s.carrierIndex] : null;
     s.players.forEach((ps, i) => {
       const p = allPlayers[i];
       p.x = ps.x; p.y = ps.y; p.facing = ps.facing;
