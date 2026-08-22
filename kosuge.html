@@ -336,31 +336,46 @@ cv.addEventListener('click', e => {
 });
 
 /* =========================================================================
-   4. 投影とカメラ
+   4. 投影とカメラ（game.html と同じ、ゴール裏から見通す俯瞰パース）
    ========================================================================= */
-const cam = { x: CX, y: CY*SQUASH, tx: CX, ty: CY*SQUASH };
+const FAR_SCALE = 0.32;            // 奥のゴール(最遠点)の横幅スケール
+const SCREEN_TOP = 16;             // 奥のゴールラインを描画するY座標
+const SCREEN_BOTTOM = VH - 6;      // 手前のゴールラインを描画するY座標
+const SCREEN_CENTER_X = VW / 2;
+const NEAR_HALF_WIDTH = VW / 2 - 6;
+const WORLD_TO_NEAR = (NEAR_HALF_WIDTH * 2) / FH;
+const VIEW_HALF_DEPTH = 210;       // カメラの手前〜奥に見える範囲の半分（ワールド単位）
+const CAMERA_ZOOM = 1.5;           // 画面中心を基準にズームして望遠寄りの画角にする
+const ZOOM_FOCUS_X = SCREEN_CENTER_X;
+const ZOOM_FOCUS_Y = (SCREEN_TOP + SCREEN_BOTTOM) / 2;
+const PAN_TAU = 0.12;              // 追従の速さ（小さいほど素早く追いつく）
 
-function projX(x,y){ return x + (FH - y) * SKEW; }
-function projY(y,z){ return y * SQUASH - (z||0) * ZS; }
+const camera = { panY: CY, depthCenter: CX };
 
-/** ワールド座標 → 画面座標 */
+function depthFrac(x){
+  const near = camera.depthCenter - VIEW_HALF_DEPTH;
+  return (x - near) / (VIEW_HALF_DEPTH * 2); // 0=手前(カメラ側), 1=奥
+}
+
+/** ワールド座標 → 画面座標。戻り値 [sx, sy, scale]（3番目は既存の分割代入では無視される）*/
 function S(x, y, z){
-  return [ (projX(x,y) - cam.x) * ZOOM + VW/2,
-           (projY(y,z) - cam.y) * ZOOM + VH/2 ];
+  const depth01 = clamp(depthFrac(x), 0, 1);
+  const d = 1 - depth01;
+  const s = FAR_SCALE + (1 - FAR_SCALE) * d;
+  const rawX = SCREEN_CENTER_X + (y - camera.panY) * WORLD_TO_NEAR * s;
+  const rawY = SCREEN_TOP + d * (SCREEN_BOTTOM - SCREEN_TOP) - (z || 0) * s;
+  return [
+    ZOOM_FOCUS_X + (rawX - ZOOM_FOCUS_X) * CAMERA_ZOOM,
+    ZOOM_FOCUS_Y + (rawY - ZOOM_FOCUS_Y) * CAMERA_ZOOM,
+    s * CAMERA_ZOOM,
+  ];
 }
-function camClamp(){
-  const hw = VW/(2*ZOOM), hh = VH/(2*ZOOM);
-  const pxMin = projX(-GOAL_D, FH) - 16, pxMax = projX(FW+GOAL_D, 0) + 16;
-  const pyMin = projY(-46,0) - 6,        pyMax = projY(FH+34,0) + 6;
-  cam.x = clamp(cam.x, Math.min(pxMin+hw, (pxMin+pxMax)/2), Math.max(pxMax-hw, (pxMin+pxMax)/2));
-  cam.y = clamp(cam.y, Math.min(pyMin+hh, (pyMin+pyMax)/2), Math.max(pyMax-hh, (pyMin+pyMax)/2));
-}
+function camClamp(){ /* depthFrac/S 側で常に 0..1 にクランプしているため不要 */ }
 function camFollow(dt, tx, ty, snap){
-  cam.tx = projX(tx, ty); cam.ty = projY(ty, 0);
-  const k = snap ? 1 : 1 - Math.pow(0.0016, dt);
-  cam.x = lerp(cam.x, cam.tx, k);
-  cam.y = lerp(cam.y, cam.ty, k);
-  camClamp();
+  const targetX = clamp(tx, 0, FW), targetY = clamp(ty, 0, FH);
+  const k = snap ? 1 : 1 - Math.exp(-dt / PAN_TAU);
+  camera.depthCenter += (targetX - camera.depthCenter) * k;
+  camera.panY += (targetY - camera.panY) * k;
 }
 
 /* =========================================================================
@@ -402,6 +417,116 @@ function panel(x,y,w,h,o){
 /* =========================================================================
    6. ワールド（選手・ボール）
    ========================================================================= */
+
+// ---- ドット絵スプライト（game.html と同じ human1/2/3 を流用）----
+const CHAR_FOLDERS = ['human1', 'human2', 'human3'];
+const POSE_FILES = {
+  idle: '01_待機.png',
+  dribble1: '02_ドリブル1.png',
+  dribble2: '03_ドリブル2.png',
+  dribble3: '04_ドリブル3.png',
+  passPrep: '05_パス_準備.png',
+  passExec: '06_パス_実行.png',
+  shootPrep: '07_シュート_準備.png',
+  shootExec: '08_シュート_実行.png',
+  dash: '09_ダッシュ.png',
+  jump: '10_ジャンプ.png',
+};
+const SPRITE_BASE_HEIGHT = 22; // カメラ scale=1 のときの基準の高さ(px)
+
+// 赤系ユニフォームの色相だけを狙って青(チームA用)に置き換える
+function recolorRedToBlue(img){
+  const c = document.createElement('canvas');
+  c.width = img.naturalWidth || img.width;
+  c.height = img.naturalHeight || img.height;
+  const cx = c.getContext('2d');
+  cx.drawImage(img, 0, 0);
+  const data = cx.getImageData(0, 0, c.width, c.height);
+  const px = data.data;
+  for (let i = 0; i < px.length; i += 4) {
+    const a = px[i + 3];
+    if (a === 0) continue;
+    const r = px[i] / 255, g = px[i + 1] / 255, b = px[i + 2] / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const l = (max + min) / 2;
+    const d = max - min;
+    if (d < 0.05) continue;
+    let h;
+    if (max === r) h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60; if (h < 0) h += 360;
+    const s = d / (1 - Math.abs(2 * l - 1));
+    const isRedHue = (h < 20 || h > 340);
+    if (!isRedHue || s < 0.3) continue;
+    const targetH = 212;
+    const hh = targetH / 60;
+    const cc = (1 - Math.abs(2 * l - 1)) * s;
+    const x = cc * (1 - Math.abs((hh % 2) - 1));
+    const m = l - cc / 2;
+    let rr, gg, bb;
+    if (hh < 1) { rr = cc; gg = x; bb = 0; }
+    else if (hh < 2) { rr = x; gg = cc; bb = 0; }
+    else if (hh < 3) { rr = 0; gg = cc; bb = x; }
+    else if (hh < 4) { rr = 0; gg = x; bb = cc; }
+    else if (hh < 5) { rr = x; gg = 0; bb = cc; }
+    else { rr = cc; gg = 0; bb = x; }
+    px[i] = Math.round((rr + m) * 255);
+    px[i + 1] = Math.round((gg + m) * 255);
+    px[i + 2] = Math.round((bb + m) * 255);
+  }
+  cx.putImageData(data, 0, 0);
+  return c;
+}
+
+const spriteSets = { red: [], blue: [] };
+CHAR_FOLDERS.forEach((folder, idx) => {
+  const redPoses = {}, bluePoses = {};
+  spriteSets.red[idx] = redPoses;
+  spriteSets.blue[idx] = bluePoses;
+  Object.keys(POSE_FILES).forEach((poseKey) => {
+    const img = new Image();
+    img.src = folder + '/' + POSE_FILES[poseKey];
+    redPoses[poseKey] = img;
+    img.addEventListener('load', () => { bluePoses[poseKey] = recolorRedToBlue(img); });
+  });
+});
+
+function updatePlayerAnim(p, dt){
+  const st = p.anim;
+  if (p.down > 0){ st.pose = null; return; } // 転倒中はプリミティブ描画にフォールバック
+  if (p.action){
+    p.action.t += dt;
+    const a = p.action;
+    if (a.type === 'shoot'){
+      if (a.t < 0.10) st.pose = 'shootPrep';
+      else if (a.t < 0.28) st.pose = 'shootExec';
+      else { p.action = null; }
+    } else if (a.type === 'pass'){
+      if (a.t < 0.08) st.pose = 'passPrep';
+      else if (a.t < 0.20) st.pose = 'passExec';
+      else { p.action = null; }
+    }
+    if (p.action) return;
+  }
+  if (Math.abs(p.face.x) > 0.15) st.flip = p.face.x < 0;
+  const dx = p.x - st.prevX, dy = p.y - st.prevY;
+  st.prevX = p.x; st.prevY = p.y;
+  const speed = dt > 0 ? Math.hypot(dx, dy) / dt : 0;
+  if (speed > 4){
+    if (hasBall(p)){
+      st.cycleTimer += dt;
+      const idx = Math.floor(st.cycleTimer * 8) % 3;
+      st.pose = ['dribble1', 'dribble2', 'dribble3'][idx];
+    } else {
+      st.pose = 'dash';
+    }
+  } else {
+    st.pose = 'idle';
+    st.cycleTimer = 0;
+  }
+}
+
 function mkPlayer(team, role){
   return {
     team, role,
@@ -415,6 +540,9 @@ function mkPlayer(team, role){
     down:0,                          // >0 なら吹き飛ばされて転倒中
     spin:0, kx:0, ky:0,              // ノックバック
     stepPhase:0,
+    charIndex: ROLES.indexOf(role),
+    action: null,
+    anim: { pose:'idle', cycleTimer:0, flip: team !== 'A', prevX:0, prevY:0 },
   };
 }
 const teamA = ROLES.map(r => mkPlayer('A', r));
@@ -500,6 +628,7 @@ function doShoot(p){
   ball.vx = dir.x*pw; ball.vy = dir.y*pw*0.92; ball.vz = 48; ball.spin = 9;
   releaseBall(0.30);
   Snd.se('se_ball_kick', { vol:1.0 });
+  p.action = { type:'shoot', t:0 };
 }
 
 function doPass(p){
@@ -519,6 +648,7 @@ function doPass(p){
   ball.vx = v.x*power; ball.vy = v.y*power; ball.vz = 16; ball.spin = 5;
   releaseBall(0.22);
   Snd.se('se_ball_kick', { vol:0.62, rate:1.22 });     // パスは軽く高めに
+  p.action = { type:'pass', t:0 };
 }
 
 function knockDown(p, fromX, fromY){
@@ -1228,15 +1358,51 @@ function drawGoal(side){
 }
 
 function shadow(x,y,rx,ry,a){
-  const [sx,sy] = S(x,y,0);
+  const [sx,sy,sc] = S(x,y,0);
   ctx.fillStyle = `rgba(0,0,0,${a == null ? .32 : a})`;
-  ctx.beginPath(); ctx.ellipse(sx, sy, rx*ZOOM, ry*ZOOM, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(sx, sy, rx*sc, ry*sc, 0, 0, Math.PI*2); ctx.fill();
+}
+
+function drawPlayerSprite(p, sx, sy, sc){
+  const set = p.team === 'A' ? spriteSets.blue : spriteSets.red;
+  const poses = set[p.charIndex];
+  const img = poses && poses[p.anim.pose];
+  if (!img || !(img instanceof HTMLCanvasElement || img.complete)) return false;
+  const dh = SPRITE_BASE_HEIGHT * sc;
+  const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+  const dw = dh * (iw / ih);
+  const top = sy - dh;
+  ctx.save();
+  if (p.anim.flip){
+    ctx.translate(sx, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(img, Math.round(-dw / 2), Math.round(top), Math.round(dw), Math.round(dh));
+  } else {
+    ctx.drawImage(img, Math.round(sx - dw / 2), Math.round(top), Math.round(dw), Math.round(dh));
+  }
+  ctx.restore();
+  return true;
 }
 
 function drawPlayer(p){
-  const s = ZOOM;
   shadow(p.x, p.y, p.r*0.95, p.r*0.42, p.down>0 ? 0.22 : 0.34);
-  const [sx, sy] = S(p.x, p.y, 0);
+  const [sx, sy, sc] = S(p.x, p.y, 0);
+  const s = sc;
+
+  if (p.down <= 0 && drawPlayerSprite(p, sx, sy, sc)){
+    if (p.humanTag){
+      const c = p.humanTag === 'you' ? COL.warn : '#4dffb8';
+      const yy = sy - SPRITE_BASE_HEIGHT*sc - 4 + Math.sin(tclock*5)*1.6;
+      ctx.fillStyle = c;
+      ctx.beginPath();
+      ctx.moveTo(sx-4, yy); ctx.lineTo(sx+4, yy); ctx.lineTo(sx, yy+5); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.stroke();
+    }
+    if (p.role === 'gk'){
+      txt('GK', sx, sy - SPRITE_BASE_HEIGHT*sc - (p.humanTag ? 10 : 2), { size:6, kind:'px', color:'#ffe9a8', ow:1 });
+    }
+    return;
+  }
 
   const isGK = p.role === 'gk';
   const shirt = isGK ? (p.team==='A'?COL.Agk:COL.Bgk) : (p.team==='A'?COL.A:COL.B);
@@ -1302,8 +1468,8 @@ function drawPlayer(p){
 
 function drawBall(){
   shadow(ball.x, ball.y, ball.r*1.05, ball.r*0.5, clamp(0.35 - ball.z*0.005, 0.08, 0.35));
-  const [sx, sy] = S(ball.x, ball.y, ball.z + ball.r);
-  const r = ball.r * ZOOM;
+  const [sx, sy, sc] = S(ball.x, ball.y, ball.z + ball.r);
+  const r = ball.r * sc;
   ctx.fillStyle = COL.ball;
   ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI*2); ctx.fill();
   ctx.strokeStyle = 'rgba(10,20,14,.85)'; ctx.stroke();
@@ -1315,7 +1481,8 @@ function drawBall(){
   }
 }
 
-function drawField(){
+function drawField(dt){
+  for (const p of players) updatePlayerAnim(p, dt);
   drawStadium();
   drawPitch();
   drawGoal('L'); drawGoal('R');
@@ -1773,8 +1940,8 @@ function updateMatchScene(dt){
   if (Net.role === 'guest'){ camFollow(dt, ball.x, ball.y); updateWinds(dt); return; }
   updateMatch(dt);
 }
-function drawMatch(){
-  drawField();
+function drawMatch(dt){
+  drawField(dt);
   drawMatchHud();
   if (B.on) drawBattle();
   if (paused) drawPause();
@@ -2084,7 +2251,7 @@ function frame(now){
   if (scene === 'title')        drawTitle();
   else if (scene === 'lobby')   drawLobby();
   else if (scene === 'netwait') drawNetwait();
-  else if (scene === 'match')   drawMatch();
+  else if (scene === 'match')   drawMatch(dt);
   else if (scene === 'result')  drawResult();
 
   clickPt = null;
