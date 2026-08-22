@@ -226,11 +226,19 @@
     return (x - PX0) / PW; // 0=手前(PX0, カメラ側), 1=奥(PX1)
   }
 
+  // ボールを追いかける横パン（左右方向のみ、ゆっくり追従）
+  const camera = { panY: CY };
+  function updateCamera(dt) {
+    const target = clamp(ball.y, PY0, PY1);
+    const k = 1 - Math.pow(0.001, dt); // 追従の滑らかさ（1秒でほぼ収束）
+    camera.panY += (target - camera.panY) * k;
+  }
+
   function projectWithDepth(x, y, depth01) {
     const d = 1 - depth01; // 0=奥, 1=手前 の従来表記に合わせる
     const s = FAR_SCALE + (1 - FAR_SCALE) * d;
     return {
-      x: SCREEN_CENTER_X + (y - CY) * WORLD_TO_NEAR * s,
+      x: SCREEN_CENTER_X + (y - camera.panY) * WORLD_TO_NEAR * s,
       y: SCREEN_TOP + d * (SCREEN_BOTTOM - SCREEN_TOP),
       scale: s,
     };
@@ -829,6 +837,7 @@
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     if (net.role !== 'guest') update(dt);
+    updateCamera(dt);
     render();
     requestAnimationFrame(loop);
   }
