@@ -33,15 +33,18 @@
     align-items: center;
     justify-content: center;
     min-height: 0;
-    padding: 8px;
+    padding: 4px;
   }
   #game {
     background: #000;
     image-rendering: pixelated;
     image-rendering: -moz-crisp-edges;
     image-rendering: crisp-edges;
+    width: 100%;
+    height: 100%;
     max-width: 100%;
     max-height: 100%;
+    object-fit: contain;
     border: 2px solid var(--border);
     border-radius: 4px;
     touch-action: none;
@@ -89,6 +92,7 @@
   }
   #passBtn { background: var(--accent); }
   #shootBtn { background: #f97362; }
+  #tackleBtn { background: #c084fc; }
   #controlBar {
     flex-shrink: 0;
     height: 28px;
@@ -167,11 +171,12 @@
     <div class="actions">
       <button class="actbtn" id="passBtn">PASS</button>
       <button class="actbtn" id="shootBtn">SHOOT</button>
+      <button class="actbtn" id="tackleBtn">ATTACK</button>
     </div>
   </div>
 
   <div id="controlBar">
-    <b>&#8593;&#8595;&#8592;&#8594;</b> / <b>WASD</b> 移動&nbsp;&nbsp;|&nbsp;&nbsp;<b>X</b> パス&nbsp;&nbsp;|&nbsp;&nbsp;<b>Z</b> / <b>Space</b> シュート
+    <b>&#8593;&#8595;&#8592;&#8594;</b> / <b>WASD</b> 移動&nbsp;&nbsp;|&nbsp;&nbsp;<b>X</b> パス&nbsp;&nbsp;|&nbsp;&nbsp;<b>Z</b> / <b>Space</b> シュート&nbsp;&nbsp;|&nbsp;&nbsp;<b>C</b> アタック
   </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -206,7 +211,199 @@
     text: '#e8eaed',
   };
 
+  // ---------- sprites ----------
+  const CHAR_FOLDERS = ['human1', 'human2', 'human3'];
+  const POSE_FILES = {
+    idle: '01_待機.png',
+    dribble1: '02_ドリブル1.png',
+    dribble2: '03_ドリブル2.png',
+    dribble3: '04_ドリブル3.png',
+    passPrep: '05_パス_準備.png',
+    passExec: '06_パス_実行.png',
+    shootPrep: '07_シュート_準備.png',
+    shootExec: '08_シュート_実行.png',
+    dash: '09_ダッシュ.png',
+    jump: '10_ジャンプ.png',
+  };
+  const SPRITE_BASE_HEIGHT = 34; // 画面手前(scale=1)での表示高さ(px)
+
+  // 赤系ユニフォームの色相だけを狙って青(チームA用)に置き換える
+  function recolorRedToBlue(img) {
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth || img.width;
+    c.height = img.naturalHeight || img.height;
+    const cx = c.getContext('2d');
+    cx.drawImage(img, 0, 0);
+    const data = cx.getImageData(0, 0, c.width, c.height);
+    const px = data.data;
+    for (let i = 0; i < px.length; i += 4) {
+      const a = px[i + 3];
+      if (a === 0) continue;
+      const r = px[i] / 255, g = px[i + 1] / 255, b = px[i + 2] / 255;
+      const max = Math.max(r, g, b), min = Math.min(r, g, b);
+      const l = (max + min) / 2;
+      const d = max - min;
+      if (d < 0.05) continue; // ほぼ無彩色（肌の陰影・黒髪の線など）はそのまま
+      let h;
+      if (max === r) h = ((g - b) / d) % 6;
+      else if (max === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      h *= 60; if (h < 0) h += 360;
+      const s = d / (1 - Math.abs(2 * l - 1));
+      // 赤系（ユニフォーム）のみ対象: 色相が0付近 かつ ある程度の彩度
+      const isRedHue = (h < 20 || h > 340);
+      if (!isRedHue || s < 0.3) continue;
+      const targetH = 212; // 青
+      const hh = targetH / 60;
+      const cc = (1 - Math.abs(2 * l - 1)) * s;
+      const x = cc * (1 - Math.abs((hh % 2) - 1));
+      const m = l - cc / 2;
+      let rr, gg, bb;
+      if (hh < 1) { rr = cc; gg = x; bb = 0; }
+      else if (hh < 2) { rr = x; gg = cc; bb = 0; }
+      else if (hh < 3) { rr = 0; gg = cc; bb = x; }
+      else if (hh < 4) { rr = 0; gg = x; bb = cc; }
+      else if (hh < 5) { rr = x; gg = 0; bb = cc; }
+      else { rr = cc; gg = 0; bb = x; }
+      px[i] = Math.round((rr + m) * 255);
+      px[i + 1] = Math.round((gg + m) * 255);
+      px[i + 2] = Math.round((bb + m) * 255);
+    }
+    cx.putImageData(data, 0, 0);
+    return c;
+  }
+
+  const spriteSets = { red: [], blue: [] }; // index: charIndex(0-2) -> {pose: image/canvas}
+  CHAR_FOLDERS.forEach((folder, idx) => {
+    const redPoses = {};
+    const bluePoses = {};
+    spriteSets.red[idx] = redPoses;
+    spriteSets.blue[idx] = bluePoses;
+    Object.keys(POSE_FILES).forEach((poseKey) => {
+      const img = new Image();
+      img.src = folder + '/' + POSE_FILES[poseKey];
+      redPoses[poseKey] = img;
+      img.addEventListener('load', () => {
+        bluePoses[poseKey] = recolorRedToBlue(img);
+      });
+    });
+  });
+
+  function isNearBall(p) {
+    return dist(p, ball) < p.radius + ball.radius + 4;
+  }
+
+  function updatePlayerAnim(p, dt) {
+    const st = p.anim;
+    if (p.action) {
+      p.action.t += dt;
+      const a = p.action;
+      if (a.type === 'shoot') {
+        if (a.t < 0.10) st.pose = 'shootPrep';
+        else if (a.t < 0.28) st.pose = 'shootExec';
+        else { p.action = null; }
+      } else if (a.type === 'pass') {
+        if (a.t < 0.08) st.pose = 'passPrep';
+        else if (a.t < 0.20) st.pose = 'passExec';
+        else { p.action = null; }
+      } else if (a.type === 'tackle') {
+        if (a.t < 0.22) st.pose = 'jump';
+        else { p.action = null; }
+      }
+      if (p.action) return;
+    }
+
+    if (Math.abs(p.facing.y) > 0.15) st.flip = p.facing.y < 0;
+
+    const dx = p.x - st.prevX, dy = p.y - st.prevY;
+    st.prevX = p.x; st.prevY = p.y;
+    const speed = dt > 0 ? Math.hypot(dx, dy) / dt : 0;
+
+    if (speed > 4) {
+      if (isNearBall(p)) {
+        st.cycleTimer += dt;
+        const idx = Math.floor(st.cycleTimer * 8) % 3;
+        st.pose = ['dribble1', 'dribble2', 'dribble3'][idx];
+      } else {
+        st.pose = 'dash';
+      }
+    } else {
+      st.pose = 'idle';
+      st.cycleTimer = 0;
+    }
+  }
+
   const HALF_SECONDS = 60; // 前半/後半 各1分
+
+  // ---------- camera projection ----------
+  // シミュレーション自体は今まで通り真上から見た座標系(x,y)のまま。
+  // 描画時だけ、PX0側のゴール裏から約60度の仰角でPX1側のゴールを見通す簡易パースに変換する。
+  // 奥行き軸はピッチの長さ方向(x)。手前(PX0, カメラ側)=大きく広い、奥(PX1)=小さく狭い。
+  const FAR_SCALE = 0.32;           // 奥のゴール(最遠点)の横幅スケール
+  const SCREEN_TOP = 14;            // 奥のゴールラインを描画するY座標
+  const SCREEN_BOTTOM = H - 4;      // 手前のゴールラインを描画するY座標
+  const SCREEN_CENTER_X = W / 2;
+  const NEAR_HALF_WIDTH = W / 2 - 4; // 画面いっぱいに近い横幅を使う
+  const WORLD_TO_NEAR = (NEAR_HALF_WIDTH * 2) / PH;
+
+  // 奥行き方向もボールに追従する簡易チェイスカメラ（camera.depthCenterがボールのx位置を追う）
+  const VIEW_HALF_DEPTH = 130; // カメラの手前〜奥に見える範囲の半分（ワールド単位）
+  function depthFrac(x) {
+    const near = camera.depthCenter - VIEW_HALF_DEPTH;
+    return (x - near) / (VIEW_HALF_DEPTH * 2); // 0=手前(カメラ側), 1=奥
+  }
+
+  // ボールを追いかけるカメラ（左右パン・奥行きドリー、ともにゆっくり追従）
+  const camera = { panY: CY, depthCenter: CX };
+  const PAN_STRENGTH = 0.35; // 1.0だとタッチライン際でピッチが画面外に出てしまうため弱める
+  const PAN_TAU = 0.12; // 追従の速さ（小さいほど素早く追いつく）
+  function updateCamera(dt) {
+    const targetY = CY + (clamp(ball.y, PY0, PY1) - CY) * PAN_STRENGTH;
+    const targetX = clamp(ball.x, PX0, PX1);
+    const k = 1 - Math.exp(-dt / PAN_TAU);
+    camera.panY += (targetY - camera.panY) * k;
+    camera.depthCenter += (targetX - camera.depthCenter) * k;
+  }
+
+  // 画面中心を基準にズームして視野を狭める（望遠寄りの画角にする）
+  const CAMERA_ZOOM = 1.6;
+  const ZOOM_FOCUS_X = SCREEN_CENTER_X;
+  const ZOOM_FOCUS_Y = (SCREEN_TOP + SCREEN_BOTTOM) / 2;
+
+  function projectWithDepth(x, y, depth01) {
+    const d = 1 - depth01; // 0=奥, 1=手前 の従来表記に合わせる
+    const s = FAR_SCALE + (1 - FAR_SCALE) * d;
+    const rawX = SCREEN_CENTER_X + (y - camera.panY) * WORLD_TO_NEAR * s;
+    const rawY = SCREEN_TOP + d * (SCREEN_BOTTOM - SCREEN_TOP);
+    return {
+      x: ZOOM_FOCUS_X + (rawX - ZOOM_FOCUS_X) * CAMERA_ZOOM,
+      y: ZOOM_FOCUS_Y + (rawY - ZOOM_FOCUS_Y) * CAMERA_ZOOM,
+      scale: s * CAMERA_ZOOM,
+    };
+  }
+
+  function project(x, y) {
+    return projectWithDepth(x, y, clamp(depthFrac(x), 0, 1));
+  }
+
+  // ゴールネットの奥行き表現用: 手前ゴールの裏側などピッチ範囲外もクランプせず延長する
+  function projectRaw(x, y) {
+    return projectWithDepth(x, y, depthFrac(x));
+  }
+
+  function projectPoly(points) {
+    return points.map(([x, y]) => project(x, y));
+  }
+
+  function drawPoly(pts, fillStyle, strokeStyle) {
+    if (pts.length === 0) return;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.closePath();
+    if (fillStyle) { ctx.fillStyle = fillStyle; ctx.fill(); }
+    if (strokeStyle) { ctx.strokeStyle = strokeStyle; ctx.lineWidth = 1; ctx.stroke(); }
+  }
 
   // ---------- helpers ----------
   function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
@@ -218,29 +415,32 @@
   }
 
   // ---------- entities ----------
-  function makePlayer(team, role, isUser, x, y) {
+  function makePlayer(team, role, isUser, x, y, charIndex) {
     return {
-      team, role, isUser,
+      team, role, isUser, charIndex,
       x, y, vx: 0, vy: 0,
       facing: { x: team === 'A' ? 1 : -1, y: 0 },
       radius: 6,
-      speed: isUser ? 62 : 56,
+      speed: isUser ? 62 : 22,
       home: { x, y },
       carryTime: 0,
+      tackleCooldown: 0,
       color: isUser ? COLORS.user : (team === 'A' ? COLORS.teamA : COLORS.teamB),
+      action: null,
+      anim: { pose: 'idle', cycleTimer: 0, flip: team !== 'A', prevX: x, prevY: y },
     };
   }
 
   // formation: inverted triangle (1 back, 2 forward)
   const teamA = [
-    makePlayer('A', 'defender', false, 110, CY),
-    makePlayer('A', 'forwardTop', true, 210, CY - 50),
-    makePlayer('A', 'forwardBottom', false, 210, CY + 50),
+    makePlayer('A', 'defender', false, 110, CY, 0),
+    makePlayer('A', 'forwardTop', true, 210, CY - 50, 1),
+    makePlayer('A', 'forwardBottom', false, 210, CY + 50, 2),
   ];
   const teamB = [
-    makePlayer('B', 'defender', false, 290, CY),
-    makePlayer('B', 'forwardTop', false, 190, CY - 50),
-    makePlayer('B', 'forwardBottom', false, 190, CY + 50),
+    makePlayer('B', 'defender', false, 290, CY, 0),
+    makePlayer('B', 'forwardTop', false, 190, CY - 50, 1),
+    makePlayer('B', 'forwardBottom', false, 190, CY + 50, 2),
   ];
   const allPlayers = teamA.concat(teamB);
   const userPlayer = teamA.find(p => p.isUser);
@@ -293,22 +493,25 @@
   // ---------- input ----------
   const held = new Set();
   const MOVE_KEYS = new Set(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyW','KeyA','KeyS','KeyD']);
-  const ACTION_KEYS = new Set(['KeyZ','Space','KeyX']);
+  const ACTION_KEYS = new Set(['KeyZ','Space','KeyX','KeyC']);
 
   window.addEventListener('keydown', (e) => {
     if (MOVE_KEYS.has(e.code) || ACTION_KEYS.has(e.code)) e.preventDefault();
     if (MOVE_KEYS.has(e.code)) held.add(e.code);
     if (e.code === 'KeyZ' || e.code === 'Space') { if (!held.has(e.code)) requestShoot(); held.add(e.code); }
     if (e.code === 'KeyX') { if (!held.has(e.code)) requestPass(); held.add(e.code); }
+    if (e.code === 'KeyC') { if (!held.has(e.code)) requestTackle(); held.add(e.code); }
   }, { passive: false });
   window.addEventListener('keyup', (e) => held.delete(e.code));
 
+  // カメラが「ゴール裏から見た画角」になっているため、キー入力は画面上の見た目の方向
+  // (上=奥へ, 下=手前へ, 左右=画面の左右) に合わせてワールド座標(x=奥行き, y=左右)へ変換する
   function userMoveVector() {
     let x = 0, y = 0;
-    if (held.has('ArrowLeft') || held.has('KeyA')) x -= 1;
-    if (held.has('ArrowRight') || held.has('KeyD')) x += 1;
-    if (held.has('ArrowUp') || held.has('KeyW')) y -= 1;
-    if (held.has('ArrowDown') || held.has('KeyS')) y += 1;
+    if (held.has('ArrowUp') || held.has('KeyW')) x += 1;    // 画面奥へ
+    if (held.has('ArrowDown') || held.has('KeyS')) x -= 1;   // 画面手前へ
+    if (held.has('ArrowLeft') || held.has('KeyA')) y -= 1;   // 画面左へ
+    if (held.has('ArrowRight') || held.has('KeyD')) y += 1;  // 画面右へ
     return normalize(x, y);
   }
 
@@ -329,6 +532,8 @@
   document.getElementById('passBtn').addEventListener('click', () => requestPass());
   document.getElementById('shootBtn').addEventListener('touchstart', (e) => { e.preventDefault(); requestShoot(); }, { passive: false });
   document.getElementById('shootBtn').addEventListener('click', () => requestShoot());
+  document.getElementById('tackleBtn').addEventListener('touchstart', (e) => { e.preventDefault(); requestTackle(); }, { passive: false });
+  document.getElementById('tackleBtn').addEventListener('click', () => requestTackle());
 
   function requestShoot() {
     if (net.role === 'guest') sendGuestAction('shoot');
@@ -337,6 +542,10 @@
   function requestPass() {
     if (net.role === 'guest') sendGuestAction('pass');
     else doPass(userPlayer);
+  }
+  function requestTackle() {
+    if (net.role === 'guest') sendGuestAction('tackle');
+    else doTackle(userPlayer);
   }
 
   // ---------- actions ----------
@@ -353,14 +562,15 @@
     return dir > 0 ? PX0 : PX1;
   }
 
-  function doShoot(p) {
+  function doShoot(p, power) {
     if (!isCarrier(p)) return;
     const dir = p.facing;
-    const power = 190;
-    ball.vx = dir.x * power;
-    ball.vy = dir.y * power * 0.6;
+    const pw = power || (p.isUser ? 190 : 95); // bot の shot は弱い
+    ball.vx = dir.x * pw;
+    ball.vy = dir.y * pw * 0.6;
     ball.carrier = null;
     ball.kickCooldown = 0.25;
+    p.action = { type: 'shoot', t: 0 };
   }
 
   function doPass(p) {
@@ -382,22 +592,51 @@
     ball.vy = toBest.y * power;
     ball.carrier = null;
     ball.kickCooldown = 0.2;
+    p.action = { type: 'pass', t: 0 };
+  }
+
+  const TACKLE_RANGE = 14;
+  function doTackle(p) {
+    if (isCarrier(p)) return;
+    if (p.tackleCooldown > 0) return;
+    p.tackleCooldown = 0.5;
+    let target = null, bestD = Infinity;
+    for (const o of allPlayers) {
+      if (o.team === p.team || !isCarrier(o)) continue;
+      const d = dist(p, o);
+      if (d < TACKLE_RANGE && d < bestD) { bestD = d; target = o; }
+    }
+    p.action = { type: 'tackle', t: 0 };
+    if (!target) return;
+    // 成功率: 完全な奪取ではなくボールをこぼす（ルーズボールにする）
+    ball.carrier = null;
+    ball.kickCooldown = 0.15;
+    const away = normalize(ball.x - target.x, ball.y - target.y);
+    ball.vx = (away.x || (Math.random() - 0.5)) * 60;
+    ball.vy = (away.y || (Math.random() - 0.5)) * 60;
+    target.carryTime = 0;
+    target.action = null;
   }
 
   // ---------- AI ----------
   function teamOf(t) { return t === 'A' ? teamA : teamB; }
 
+  const BOT_CHASE_RANGE = 55; // この距離より遠いボールは追わない（ユーザー頼み）
+
   function pickChaser(team) {
     const players = teamOf(team);
-    let best = players[0], bestD = Infinity;
+    let best = null, bestD = Infinity;
     for (const p of players) {
+      if (p.isUser) continue;
       const d = dist(p, ball);
       if (d < bestD) { bestD = d; best = p; }
     }
+    if (best && bestD > BOT_CHASE_RANGE) return null;
     return best;
   }
 
   function updateBotAI(p, dt) {
+    if (p.tackleCooldown > 0) p.tackleCooldown -= dt;
     const chaser = pickChaser(p.team);
     const teamHasCarrier = teamOf(p.team).some(t => isCarrier(t));
 
@@ -405,22 +644,22 @@
       p.carryTime += dt;
       const goalX = opponentGoalX(p.team);
       const distToGoal = Math.abs(goalX - p.x);
-      const aligned = Math.abs(p.y - CY) < 22;
+      const aligned = Math.abs(p.y - CY) < 18;
       // steer toward goal while dribbling
       const target = { x: goalX, y: CY };
       steerTowards(p, target, dt);
-      if (distToGoal < 90 && aligned) {
+      if (distToGoal < 45 && aligned) {
         doShoot(p);
-      } else if (p.carryTime > 1.1) {
+      } else if (p.carryTime > 2.2) {
         doPass(p);
       }
       return;
     }
 
-    // defenders actively contest anyone threatening their own half
+    // defenders only weakly contest anyone very close to their own goal
     if (p.role === 'defender') {
       const myGoalX = ownGoalX(p.team);
-      if (Math.abs(ball.x - myGoalX) < 170) {
+      if (Math.abs(ball.x - myGoalX) < 60) {
         steerTowards(p, ball, dt);
         return;
       }
@@ -464,6 +703,7 @@
       userPlayer.vx = 0; userPlayer.vy = 0;
     }
     if (isCarrier(userPlayer)) userPlayer.carryTime += dt;
+    if (userPlayer.tackleCooldown > 0) userPlayer.tackleCooldown -= dt;
   }
 
   function integratePlayer(p, dt) {
@@ -591,78 +831,157 @@
     ctx.fillStyle = '#0c1710';
     ctx.fillRect(0, 0, W, H);
 
-    ctx.fillStyle = COLORS.pitch;
-    ctx.fillRect(PX0, PY0, PW, PH);
+    // pitch base (trapezoid: far edge narrow, near edge wide)
+    drawPoly(projectPoly([[PX0, PY0], [PX1, PY0], [PX1, PY1], [PX0, PY1]]), COLORS.pitch, null);
 
-    // simple mow stripes
-    ctx.fillStyle = COLORS.pitchDark;
+    // mow stripes
     const stripeW = PW / 8;
     for (let i = 0; i < 8; i += 2) {
-      ctx.fillRect(PX0 + i * stripeW, PY0, stripeW, PH);
+      const xA = PX0 + i * stripeW, xB = xA + stripeW;
+      drawPoly(projectPoly([[xA, PY0], [xB, PY0], [xB, PY1], [xA, PY1]]), COLORS.pitchDark, null);
     }
 
+    // outer boundary
+    drawPoly(projectPoly([[PX0, PY0], [PX1, PY0], [PX1, PY1], [PX0, PY1]]), null, COLORS.pitchLine);
+
+    // center line
     ctx.strokeStyle = COLORS.pitchLine;
     ctx.lineWidth = 1;
-    ctx.strokeRect(PX0 + 0.5, PY0 + 0.5, PW - 1, PH - 1);
+    const cTop = project(CX, PY0), cBot = project(CX, PY1);
+    ctx.beginPath();
+    ctx.moveTo(cTop.x, cTop.y); ctx.lineTo(cBot.x, cBot.y);
+    ctx.stroke();
 
-    // center line + circle
-    ctx.beginPath();
-    ctx.moveTo(CX, PY0); ctx.lineTo(CX, PY1);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(CX, CY, 22, 0, Math.PI * 2);
-    ctx.stroke();
+    // center circle (sampled polygon so it warps naturally with the perspective)
+    const circlePts = [];
+    for (let i = 0; i <= 24; i++) {
+      const t = (i / 24) * Math.PI * 2;
+      circlePts.push([CX + Math.cos(t) * 22, CY + Math.sin(t) * 22]);
+    }
+    drawPoly(projectPoly(circlePts), null, COLORS.pitchLine);
 
     // goal boxes
-    ctx.strokeRect(PX0, GOAL_Y0 - 8, 24, (GOAL_Y1 - GOAL_Y0) + 16);
-    ctx.strokeRect(PX1 - 24, GOAL_Y0 - 8, 24, (GOAL_Y1 - GOAL_Y0) + 16);
+    drawPoly(projectPoly([[PX0, GOAL_Y0 - 8], [PX0 + 24, GOAL_Y0 - 8], [PX0 + 24, GOAL_Y1 + 8], [PX0, GOAL_Y1 + 8]]), null, COLORS.pitchLine);
+    drawPoly(projectPoly([[PX1, GOAL_Y0 - 8], [PX1 - 24, GOAL_Y0 - 8], [PX1 - 24, GOAL_Y1 + 8], [PX1, GOAL_Y1 + 8]]), null, COLORS.pitchLine);
 
-    // goals (nets)
-    ctx.fillStyle = '#cfd3da';
-    ctx.fillRect(PX0 - GOAL_DEPTH, GOAL_Y0, GOAL_DEPTH, GOAL_Y1 - GOAL_Y0);
-    ctx.fillRect(PX1, GOAL_Y0, GOAL_DEPTH, GOAL_Y1 - GOAL_Y0);
+    drawGoalFrame(PX0, 1);
+    drawGoalFrame(PX1, -1);
   }
 
-  function drawPlayer(p) {
-    // shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.beginPath();
-    ctx.ellipse(p.x, p.y + p.radius - 1, p.radius * 0.9, p.radius * 0.4, 0, 0, Math.PI * 2);
-    ctx.fill();
+  // 3D風のゴールフレーム（ゴールラインから立ち上がるネットを簡易表現）
+  function drawGoalFrame(lineX, outwardDir) {
+    const postWorldHeight = 22;
+    // 2本のポストは同じ奥行き(x=lineX)、幅方向(y)にだけ左右に離れている
+    const postA = project(lineX, GOAL_Y0);
+    const postB = project(lineX, GOAL_Y1);
+    const postATop = { x: postA.x, y: postA.y - postWorldHeight * postA.scale };
+    const postBTop = { x: postB.x, y: postB.y - postWorldHeight * postB.scale };
 
-    // body (blocky pixel look: draw as small square + circle head)
+    // ネットの奥行き（ゴールラインの外側へ）。手前ゴールは画面外へはみ出してOK
+    const backX = lineX + outwardDir * GOAL_DEPTH;
+    const backA = projectRaw(backX, GOAL_Y0);
+    const backB = projectRaw(backX, GOAL_Y1);
+    const backATop = { x: backA.x, y: backA.y - postWorldHeight * backA.scale * 0.7 };
+    const backBTop = { x: backB.x, y: backB.y - postWorldHeight * backB.scale * 0.7 };
+
+    // net (back wall)
+    ctx.fillStyle = 'rgba(230,235,240,0.35)';
+    ctx.beginPath();
+    ctx.moveTo(backATop.x, backATop.y); ctx.lineTo(backBTop.x, backBTop.y);
+    ctx.lineTo(backB.x, backB.y); ctx.lineTo(backA.x, backA.y);
+    ctx.closePath(); ctx.fill();
+
+    // side net + crossbar
+    ctx.strokeStyle = '#dfe3ea';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(postA.x, postA.y); ctx.lineTo(postATop.x, postATop.y);
+    ctx.lineTo(postBTop.x, postBTop.y); ctx.lineTo(postB.x, postB.y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(postATop.x, postATop.y); ctx.lineTo(backATop.x, backATop.y);
+    ctx.moveTo(postBTop.x, postBTop.y); ctx.lineTo(backBTop.x, backBTop.y);
+    ctx.stroke();
+  }
+
+  function drawPlayerBlock(p, proj) {
+    const r = p.radius * proj.scale;
+    const sx = proj.x, sy = proj.y;
+    const bodyTop = sy - r * 2;
+
     ctx.fillStyle = p.color;
-    ctx.fillRect(Math.round(p.x - p.radius), Math.round(p.y - p.radius), p.radius * 2, p.radius * 2);
+    ctx.fillRect(Math.round(sx - r), Math.round(bodyTop), r * 2, r * 2);
 
     ctx.fillStyle = '#111';
-    ctx.fillRect(Math.round(p.x - p.radius), Math.round(p.y - p.radius), p.radius * 2, 1);
+    ctx.fillRect(Math.round(sx - r), Math.round(bodyTop), r * 2, Math.max(1, proj.scale));
 
     // facing indicator
     ctx.fillStyle = '#111';
-    const fx = Math.round(p.x + p.facing.x * (p.radius - 1));
-    const fy = Math.round(p.y + p.facing.y * (p.radius - 1));
-    ctx.fillRect(fx - 1, fy - 1, 2, 2);
+    const fx = Math.round(sx + p.facing.x * (r - 1));
+    const fy = Math.round(bodyTop + r + p.facing.y * (r - 1));
+    const fs = Math.max(1, Math.round(2 * proj.scale));
+    ctx.fillRect(fx - fs / 2, fy - fs / 2, fs, fs);
+    return bodyTop;
+  }
+
+  function drawPlayer(p) {
+    const proj = project(p.x, p.y);
+    const sx = proj.x, sy = proj.y;
+    const r = p.radius * proj.scale;
+
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath();
+    ctx.ellipse(sx, sy, r * 0.9, r * 0.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    const set = p.team === 'A' ? spriteSets.blue : spriteSets.red;
+    const poses = set[p.charIndex];
+    const img = poses && poses[p.anim.pose];
+    let bodyTop;
+
+    if (img && (img instanceof HTMLCanvasElement || img.complete)) {
+      const dh = SPRITE_BASE_HEIGHT * proj.scale;
+      const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+      const dw = dh * (iw / ih);
+      bodyTop = sy - dh;
+      ctx.save();
+      if (p.anim.flip) {
+        ctx.translate(sx, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(img, Math.round(-dw / 2), Math.round(bodyTop), Math.round(dw), Math.round(dh));
+      } else {
+        ctx.drawImage(img, Math.round(sx - dw / 2), Math.round(bodyTop), Math.round(dw), Math.round(dh));
+      }
+      ctx.restore();
+    } else {
+      bodyTop = drawPlayerBlock(p, proj);
+    }
 
     if (p.isUser) {
       ctx.fillStyle = p.markerColor || COLORS.user;
       ctx.beginPath();
-      ctx.moveTo(p.x - 4, p.y - p.radius - 6);
-      ctx.lineTo(p.x + 4, p.y - p.radius - 6);
-      ctx.lineTo(p.x, p.y - p.radius - 2);
+      ctx.moveTo(sx - 4 * proj.scale, bodyTop - 6 * proj.scale);
+      ctx.lineTo(sx + 4 * proj.scale, bodyTop - 6 * proj.scale);
+      ctx.lineTo(sx, bodyTop - 2 * proj.scale);
       ctx.closePath();
       ctx.fill();
     }
   }
 
   function drawBall() {
+    const proj = project(ball.x, ball.y);
+    const r = Math.max(1.5, ball.radius * proj.scale);
+    const sx = proj.x, sy = proj.y;
+
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.beginPath();
-    ctx.ellipse(ball.x, ball.y + 2, ball.radius, ball.radius * 0.5, 0, 0, Math.PI * 2);
+    ctx.ellipse(sx, sy + r * 0.6, r, r * 0.5, 0, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = COLORS.ball;
     ctx.beginPath();
-    ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+    ctx.arc(sx, sy - r, r, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = COLORS.ballLine;
     ctx.lineWidth = 1;
@@ -682,18 +1001,14 @@
     ctx.font = '10px monospace';
 
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    ctx.fillRect(CX - 60, 4, 120, 12);
+    ctx.fillRect(SCREEN_CENTER_X - 60, 4, 120, 12);
 
     ctx.fillStyle = COLORS.teamA;
-    ctx.fillText(String(match.scoreA), CX - 40, 10);
+    ctx.fillText(String(match.scoreA), SCREEN_CENTER_X - 40, 10);
     ctx.fillStyle = COLORS.text;
-    ctx.fillText(formatTime(match.timeLeft), CX, 10);
+    ctx.fillText(formatTime(match.timeLeft), SCREEN_CENTER_X, 10);
     ctx.fillStyle = COLORS.teamB;
-    ctx.fillText(String(match.scoreB), CX + 40, 10);
-
-    ctx.font = '8px monospace';
-    ctx.fillStyle = COLORS.muted || '#8b93a1';
-    ctx.fillText('H' + match.half, CX, 20);
+    ctx.fillText(String(match.scoreB), SCREEN_CENTER_X + 40, 10);
 
     if (match.state === 'goal') {
       overlayText('GOAL!');
@@ -706,18 +1021,50 @@
 
   function overlayText(msg) {
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    ctx.fillRect(0, CY - 16, W, 32);
+    ctx.fillRect(0, H / 2 - 16, W, 32);
     ctx.fillStyle = '#fff';
     ctx.font = '16px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(msg, CX, CY);
+    ctx.fillText(msg, SCREEN_CENTER_X, H / 2);
   }
 
-  function render() {
+  const SHOOT_HINT_RANGE = 130; // このぐらい近づいたら「シュートしろ」表示
+
+  function myControlledPlayer() {
+    return (net.role === 'guest') ? guestSlot : userPlayer;
+  }
+
+  function drawShootHint() {
+    if (match.state !== 'playing') return;
+    const me = myControlledPlayer();
+    if (!isCarrier(me)) return;
+    const goalX = opponentGoalX(me.team);
+    if (Math.abs(goalX - me.x) > SHOOT_HINT_RANGE) return;
+
+    const proj = project(me.x, me.y);
+    const bob = Math.sin(performance.now() / 180) * 2;
+    const label = 'Zでシュート！';
+    ctx.font = 'bold 11px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const textW = ctx.measureText(label).width;
+    const boxX = proj.x - textW / 2 - 5, boxY = proj.y - 40 * proj.scale - 14 + bob;
+    ctx.fillStyle = 'rgba(249,115,98,0.9)';
+    ctx.fillRect(boxX, boxY, textW + 10, 16);
+    ctx.fillStyle = '#fff';
+    ctx.fillText(label, boxX + (textW + 10) / 2, boxY + 8);
+  }
+
+  function render(dt) {
+    for (const p of allPlayers) updatePlayerAnim(p, dt);
     drawPitch();
-    for (const p of allPlayers) drawPlayer(p);
-    drawBall();
+    const drawables = allPlayers.concat([ball]);
+    drawables.sort((a, b) => b.x - a.x); // far-to-near painter's order (奥=PX1側 から手前=PX0側の順)
+    for (const d of drawables) {
+      if (d === ball) drawBall(); else drawPlayer(d);
+    }
+    drawShootHint();
     drawHUD();
   }
 
@@ -727,7 +1074,8 @@
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     if (net.role !== 'guest') update(dt);
-    render();
+    updateCamera(dt);
+    render(dt);
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
@@ -758,6 +1106,7 @@
       p.vx = 0; p.vy = 0;
     }
     if (isCarrier(p)) p.carryTime += dt;
+    if (p.tackleCooldown > 0) p.tackleCooldown -= dt;
   }
 
   function sendGuestAction(action) {
@@ -770,6 +1119,7 @@
       half: match.half, timeLeft: match.timeLeft,
       scoreA: match.scoreA, scoreB: match.scoreB, state: match.state,
       ball: { x: ball.x, y: ball.y },
+      carrierIndex: ball.carrier ? allPlayers.indexOf(ball.carrier) : -1,
       players: allPlayers.map(p => ({
         x: p.x, y: p.y, facing: p.facing,
         isUser: !!p.isUser, markerColor: p.markerColor || null,
@@ -781,6 +1131,7 @@
     match.half = s.half; match.timeLeft = s.timeLeft;
     match.scoreA = s.scoreA; match.scoreB = s.scoreB; match.state = s.state;
     ball.x = s.ball.x; ball.y = s.ball.y;
+    ball.carrier = (s.carrierIndex >= 0) ? allPlayers[s.carrierIndex] : null;
     s.players.forEach((ps, i) => {
       const p = allPlayers[i];
       p.x = ps.x; p.y = ps.y; p.facing = ps.facing;
@@ -821,6 +1172,7 @@
       if (net.role !== 'host') return;
       if (msg.payload.action === 'shoot') doShoot(guestSlot);
       else if (msg.payload.action === 'pass') doPass(guestSlot);
+      else if (msg.payload.action === 'tackle') doTackle(guestSlot);
     });
     net.channel.on('broadcast', { event: 'snapshot' }, (msg) => {
       if (net.role === 'guest') applySnapshot(msg.payload);
