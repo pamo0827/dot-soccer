@@ -556,8 +556,8 @@ function slot(p){
   const d = p.team === 'A' ? M.dirA : -M.dirA;
   const gx = d > 0 ? 0 : FW;                       // 自陣ゴール側
   if (p.role === 'gk')        return { x: gx + d*44,  y: CY };
-  if (p.role === 'fwdTop')    return { x: CX - d*46, y: CY + 74 };
-  return                             { x: CX - d*46, y: CY - 74 };
+  if (p.role === 'fwdTop')    return { x: CX - d*46, y: CY - 74 };
+  return                             { x: CX - d*46, y: CY + 74 };
 }
 
 function kickoff(who){
