@@ -33,15 +33,18 @@
     align-items: center;
     justify-content: center;
     min-height: 0;
-    padding: 8px;
+    padding: 4px;
   }
   #game {
     background: #000;
     image-rendering: pixelated;
     image-rendering: -moz-crisp-edges;
     image-rendering: crisp-edges;
+    width: 100%;
+    height: 100%;
     max-width: 100%;
     max-height: 100%;
+    object-fit: contain;
     border: 2px solid var(--border);
     border-radius: 4px;
     touch-action: none;
@@ -207,6 +210,54 @@
   };
 
   const HALF_SECONDS = 60; // 前半/後半 各1分
+
+  // ---------- camera projection ----------
+  // シミュレーション自体は今まで通り真上から見た座標系(x,y)のまま。
+  // 描画時だけ、PX0側のゴール裏から約60度の仰角でPX1側のゴールを見通す簡易パースに変換する。
+  // 奥行き軸はピッチの長さ方向(x)。手前(PX0, カメラ側)=大きく広い、奥(PX1)=小さく狭い。
+  const FAR_SCALE = 0.32;           // 奥のゴール(最遠点)の横幅スケール
+  const SCREEN_TOP = 14;            // 奥のゴールラインを描画するY座標
+  const SCREEN_BOTTOM = H - 4;      // 手前のゴールラインを描画するY座標
+  const SCREEN_CENTER_X = W / 2;
+  const NEAR_HALF_WIDTH = W / 2 - 4; // 画面いっぱいに近い横幅を使う
+  const WORLD_TO_NEAR = (NEAR_HALF_WIDTH * 2) / PH;
+
+  function depthFrac(x) {
+    return (x - PX0) / PW; // 0=手前(PX0, カメラ側), 1=奥(PX1)
+  }
+
+  function projectWithDepth(x, y, depth01) {
+    const d = 1 - depth01; // 0=奥, 1=手前 の従来表記に合わせる
+    const s = FAR_SCALE + (1 - FAR_SCALE) * d;
+    return {
+      x: SCREEN_CENTER_X + (y - CY) * WORLD_TO_NEAR * s,
+      y: SCREEN_TOP + d * (SCREEN_BOTTOM - SCREEN_TOP),
+      scale: s,
+    };
+  }
+
+  function project(x, y) {
+    return projectWithDepth(x, y, clamp(depthFrac(x), 0, 1));
+  }
+
+  // ゴールネットの奥行き表現用: 手前ゴールの裏側などピッチ範囲外もクランプせず延長する
+  function projectRaw(x, y) {
+    return projectWithDepth(x, y, depthFrac(x));
+  }
+
+  function projectPoly(points) {
+    return points.map(([x, y]) => project(x, y));
+  }
+
+  function drawPoly(pts, fillStyle, strokeStyle) {
+    if (pts.length === 0) return;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.closePath();
+    if (fillStyle) { ctx.fillStyle = fillStyle; ctx.fill(); }
+    if (strokeStyle) { ctx.strokeStyle = strokeStyle; ctx.lineWidth = 1; ctx.stroke(); }
+  }
 
   // ---------- helpers ----------
   function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
@@ -591,78 +642,130 @@
     ctx.fillStyle = '#0c1710';
     ctx.fillRect(0, 0, W, H);
 
-    ctx.fillStyle = COLORS.pitch;
-    ctx.fillRect(PX0, PY0, PW, PH);
+    // pitch base (trapezoid: far edge narrow, near edge wide)
+    drawPoly(projectPoly([[PX0, PY0], [PX1, PY0], [PX1, PY1], [PX0, PY1]]), COLORS.pitch, null);
 
-    // simple mow stripes
-    ctx.fillStyle = COLORS.pitchDark;
+    // mow stripes
     const stripeW = PW / 8;
     for (let i = 0; i < 8; i += 2) {
-      ctx.fillRect(PX0 + i * stripeW, PY0, stripeW, PH);
+      const xA = PX0 + i * stripeW, xB = xA + stripeW;
+      drawPoly(projectPoly([[xA, PY0], [xB, PY0], [xB, PY1], [xA, PY1]]), COLORS.pitchDark, null);
     }
 
+    // outer boundary
+    drawPoly(projectPoly([[PX0, PY0], [PX1, PY0], [PX1, PY1], [PX0, PY1]]), null, COLORS.pitchLine);
+
+    // center line
     ctx.strokeStyle = COLORS.pitchLine;
     ctx.lineWidth = 1;
-    ctx.strokeRect(PX0 + 0.5, PY0 + 0.5, PW - 1, PH - 1);
+    const cTop = project(CX, PY0), cBot = project(CX, PY1);
+    ctx.beginPath();
+    ctx.moveTo(cTop.x, cTop.y); ctx.lineTo(cBot.x, cBot.y);
+    ctx.stroke();
 
-    // center line + circle
-    ctx.beginPath();
-    ctx.moveTo(CX, PY0); ctx.lineTo(CX, PY1);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(CX, CY, 22, 0, Math.PI * 2);
-    ctx.stroke();
+    // center circle (sampled polygon so it warps naturally with the perspective)
+    const circlePts = [];
+    for (let i = 0; i <= 24; i++) {
+      const t = (i / 24) * Math.PI * 2;
+      circlePts.push([CX + Math.cos(t) * 22, CY + Math.sin(t) * 22]);
+    }
+    drawPoly(projectPoly(circlePts), null, COLORS.pitchLine);
 
     // goal boxes
-    ctx.strokeRect(PX0, GOAL_Y0 - 8, 24, (GOAL_Y1 - GOAL_Y0) + 16);
-    ctx.strokeRect(PX1 - 24, GOAL_Y0 - 8, 24, (GOAL_Y1 - GOAL_Y0) + 16);
+    drawPoly(projectPoly([[PX0, GOAL_Y0 - 8], [PX0 + 24, GOAL_Y0 - 8], [PX0 + 24, GOAL_Y1 + 8], [PX0, GOAL_Y1 + 8]]), null, COLORS.pitchLine);
+    drawPoly(projectPoly([[PX1, GOAL_Y0 - 8], [PX1 - 24, GOAL_Y0 - 8], [PX1 - 24, GOAL_Y1 + 8], [PX1, GOAL_Y1 + 8]]), null, COLORS.pitchLine);
 
-    // goals (nets)
-    ctx.fillStyle = '#cfd3da';
-    ctx.fillRect(PX0 - GOAL_DEPTH, GOAL_Y0, GOAL_DEPTH, GOAL_Y1 - GOAL_Y0);
-    ctx.fillRect(PX1, GOAL_Y0, GOAL_DEPTH, GOAL_Y1 - GOAL_Y0);
+    drawGoalFrame(PX0, 1);
+    drawGoalFrame(PX1, -1);
+  }
+
+  // 3D風のゴールフレーム（ゴールラインから立ち上がるネットを簡易表現）
+  function drawGoalFrame(lineX, outwardDir) {
+    const postWorldHeight = 22;
+    // 2本のポストは同じ奥行き(x=lineX)、幅方向(y)にだけ左右に離れている
+    const postA = project(lineX, GOAL_Y0);
+    const postB = project(lineX, GOAL_Y1);
+    const postATop = { x: postA.x, y: postA.y - postWorldHeight * postA.scale };
+    const postBTop = { x: postB.x, y: postB.y - postWorldHeight * postB.scale };
+
+    // ネットの奥行き（ゴールラインの外側へ）。手前ゴールは画面外へはみ出してOK
+    const backX = lineX + outwardDir * GOAL_DEPTH;
+    const backA = projectRaw(backX, GOAL_Y0);
+    const backB = projectRaw(backX, GOAL_Y1);
+    const backATop = { x: backA.x, y: backA.y - postWorldHeight * backA.scale * 0.7 };
+    const backBTop = { x: backB.x, y: backB.y - postWorldHeight * backB.scale * 0.7 };
+
+    // net (back wall)
+    ctx.fillStyle = 'rgba(230,235,240,0.35)';
+    ctx.beginPath();
+    ctx.moveTo(backATop.x, backATop.y); ctx.lineTo(backBTop.x, backBTop.y);
+    ctx.lineTo(backB.x, backB.y); ctx.lineTo(backA.x, backA.y);
+    ctx.closePath(); ctx.fill();
+
+    // side net + crossbar
+    ctx.strokeStyle = '#dfe3ea';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(postA.x, postA.y); ctx.lineTo(postATop.x, postATop.y);
+    ctx.lineTo(postBTop.x, postBTop.y); ctx.lineTo(postB.x, postB.y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(postATop.x, postATop.y); ctx.lineTo(backATop.x, backATop.y);
+    ctx.moveTo(postBTop.x, postBTop.y); ctx.lineTo(backBTop.x, backBTop.y);
+    ctx.stroke();
   }
 
   function drawPlayer(p) {
+    const proj = project(p.x, p.y);
+    const r = p.radius * proj.scale;
+    const sx = proj.x, sy = proj.y;
+
     // shadow
     ctx.fillStyle = 'rgba(0,0,0,0.35)';
     ctx.beginPath();
-    ctx.ellipse(p.x, p.y + p.radius - 1, p.radius * 0.9, p.radius * 0.4, 0, 0, Math.PI * 2);
+    ctx.ellipse(sx, sy, r * 0.9, r * 0.4, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // body (blocky pixel look: draw as small square + circle head)
+    const bodyTop = sy - r * 2;
+
+    // body (blocky pixel look)
     ctx.fillStyle = p.color;
-    ctx.fillRect(Math.round(p.x - p.radius), Math.round(p.y - p.radius), p.radius * 2, p.radius * 2);
+    ctx.fillRect(Math.round(sx - r), Math.round(bodyTop), r * 2, r * 2);
 
     ctx.fillStyle = '#111';
-    ctx.fillRect(Math.round(p.x - p.radius), Math.round(p.y - p.radius), p.radius * 2, 1);
+    ctx.fillRect(Math.round(sx - r), Math.round(bodyTop), r * 2, Math.max(1, proj.scale));
 
     // facing indicator
     ctx.fillStyle = '#111';
-    const fx = Math.round(p.x + p.facing.x * (p.radius - 1));
-    const fy = Math.round(p.y + p.facing.y * (p.radius - 1));
-    ctx.fillRect(fx - 1, fy - 1, 2, 2);
+    const fx = Math.round(sx + p.facing.x * (r - 1));
+    const fy = Math.round(bodyTop + r + p.facing.y * (r - 1));
+    const fs = Math.max(1, Math.round(2 * proj.scale));
+    ctx.fillRect(fx - fs / 2, fy - fs / 2, fs, fs);
 
     if (p.isUser) {
       ctx.fillStyle = p.markerColor || COLORS.user;
       ctx.beginPath();
-      ctx.moveTo(p.x - 4, p.y - p.radius - 6);
-      ctx.lineTo(p.x + 4, p.y - p.radius - 6);
-      ctx.lineTo(p.x, p.y - p.radius - 2);
+      ctx.moveTo(sx - 4 * proj.scale, bodyTop - 6 * proj.scale);
+      ctx.lineTo(sx + 4 * proj.scale, bodyTop - 6 * proj.scale);
+      ctx.lineTo(sx, bodyTop - 2 * proj.scale);
       ctx.closePath();
       ctx.fill();
     }
   }
 
   function drawBall() {
+    const proj = project(ball.x, ball.y);
+    const r = Math.max(1.5, ball.radius * proj.scale);
+    const sx = proj.x, sy = proj.y;
+
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.beginPath();
-    ctx.ellipse(ball.x, ball.y + 2, ball.radius, ball.radius * 0.5, 0, 0, Math.PI * 2);
+    ctx.ellipse(sx, sy + r * 0.6, r, r * 0.5, 0, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = COLORS.ball;
     ctx.beginPath();
-    ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+    ctx.arc(sx, sy - r, r, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = COLORS.ballLine;
     ctx.lineWidth = 1;
@@ -682,18 +785,14 @@
     ctx.font = '10px monospace';
 
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    ctx.fillRect(CX - 60, 4, 120, 12);
+    ctx.fillRect(SCREEN_CENTER_X - 60, 4, 120, 12);
 
     ctx.fillStyle = COLORS.teamA;
-    ctx.fillText(String(match.scoreA), CX - 40, 10);
+    ctx.fillText(String(match.scoreA), SCREEN_CENTER_X - 40, 10);
     ctx.fillStyle = COLORS.text;
-    ctx.fillText(formatTime(match.timeLeft), CX, 10);
+    ctx.fillText(formatTime(match.timeLeft), SCREEN_CENTER_X, 10);
     ctx.fillStyle = COLORS.teamB;
-    ctx.fillText(String(match.scoreB), CX + 40, 10);
-
-    ctx.font = '8px monospace';
-    ctx.fillStyle = COLORS.muted || '#8b93a1';
-    ctx.fillText('H' + match.half, CX, 20);
+    ctx.fillText(String(match.scoreB), SCREEN_CENTER_X + 40, 10);
 
     if (match.state === 'goal') {
       overlayText('GOAL!');
@@ -706,18 +805,21 @@
 
   function overlayText(msg) {
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    ctx.fillRect(0, CY - 16, W, 32);
+    ctx.fillRect(0, H / 2 - 16, W, 32);
     ctx.fillStyle = '#fff';
     ctx.font = '16px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(msg, CX, CY);
+    ctx.fillText(msg, SCREEN_CENTER_X, H / 2);
   }
 
   function render() {
     drawPitch();
-    for (const p of allPlayers) drawPlayer(p);
-    drawBall();
+    const drawables = allPlayers.concat([ball]);
+    drawables.sort((a, b) => b.x - a.x); // far-to-near painter's order (奥=PX1側 から手前=PX0側の順)
+    for (const d of drawables) {
+      if (d === ball) drawBall(); else drawPlayer(d);
+    }
     drawHUD();
   }
 
