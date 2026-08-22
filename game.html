@@ -92,6 +92,7 @@
   }
   #passBtn { background: var(--accent); }
   #shootBtn { background: #f97362; }
+  #tackleBtn { background: #c084fc; }
   #controlBar {
     flex-shrink: 0;
     height: 28px;
@@ -170,11 +171,12 @@
     <div class="actions">
       <button class="actbtn" id="passBtn">PASS</button>
       <button class="actbtn" id="shootBtn">SHOOT</button>
+      <button class="actbtn" id="tackleBtn">ATTACK</button>
     </div>
   </div>
 
   <div id="controlBar">
-    <b>&#8593;&#8595;&#8592;&#8594;</b> / <b>WASD</b> 移動&nbsp;&nbsp;|&nbsp;&nbsp;<b>X</b> パス&nbsp;&nbsp;|&nbsp;&nbsp;<b>Z</b> / <b>Space</b> シュート
+    <b>&#8593;&#8595;&#8592;&#8594;</b> / <b>WASD</b> 移動&nbsp;&nbsp;|&nbsp;&nbsp;<b>X</b> パス&nbsp;&nbsp;|&nbsp;&nbsp;<b>Z</b> / <b>Space</b> シュート&nbsp;&nbsp;|&nbsp;&nbsp;<b>C</b> アタック
   </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -208,6 +210,128 @@
     ballLine: '#111',
     text: '#e8eaed',
   };
+
+  // ---------- sprites ----------
+  const CHAR_FOLDERS = ['human1', 'human2', 'human3'];
+  const POSE_FILES = {
+    idle: '01_待機.png',
+    dribble1: '02_ドリブル1.png',
+    dribble2: '03_ドリブル2.png',
+    dribble3: '04_ドリブル3.png',
+    passPrep: '05_パス_準備.png',
+    passExec: '06_パス_実行.png',
+    shootPrep: '07_シュート_準備.png',
+    shootExec: '08_シュート_実行.png',
+    dash: '09_ダッシュ.png',
+    jump: '10_ジャンプ.png',
+  };
+  const SPRITE_BASE_HEIGHT = 34; // 画面手前(scale=1)での表示高さ(px)
+
+  // 赤系ユニフォームの色相だけを狙って青(チームA用)に置き換える
+  function recolorRedToBlue(img) {
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth || img.width;
+    c.height = img.naturalHeight || img.height;
+    const cx = c.getContext('2d');
+    cx.drawImage(img, 0, 0);
+    const data = cx.getImageData(0, 0, c.width, c.height);
+    const px = data.data;
+    for (let i = 0; i < px.length; i += 4) {
+      const a = px[i + 3];
+      if (a === 0) continue;
+      const r = px[i] / 255, g = px[i + 1] / 255, b = px[i + 2] / 255;
+      const max = Math.max(r, g, b), min = Math.min(r, g, b);
+      const l = (max + min) / 2;
+      const d = max - min;
+      if (d < 0.05) continue; // ほぼ無彩色（肌の陰影・黒髪の線など）はそのまま
+      let h;
+      if (max === r) h = ((g - b) / d) % 6;
+      else if (max === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      h *= 60; if (h < 0) h += 360;
+      const s = d / (1 - Math.abs(2 * l - 1));
+      // 赤系（ユニフォーム）のみ対象: 色相が0付近 かつ ある程度の彩度
+      const isRedHue = (h < 20 || h > 340);
+      if (!isRedHue || s < 0.3) continue;
+      const targetH = 212; // 青
+      const hh = targetH / 60;
+      const cc = (1 - Math.abs(2 * l - 1)) * s;
+      const x = cc * (1 - Math.abs((hh % 2) - 1));
+      const m = l - cc / 2;
+      let rr, gg, bb;
+      if (hh < 1) { rr = cc; gg = x; bb = 0; }
+      else if (hh < 2) { rr = x; gg = cc; bb = 0; }
+      else if (hh < 3) { rr = 0; gg = cc; bb = x; }
+      else if (hh < 4) { rr = 0; gg = x; bb = cc; }
+      else if (hh < 5) { rr = x; gg = 0; bb = cc; }
+      else { rr = cc; gg = 0; bb = x; }
+      px[i] = Math.round((rr + m) * 255);
+      px[i + 1] = Math.round((gg + m) * 255);
+      px[i + 2] = Math.round((bb + m) * 255);
+    }
+    cx.putImageData(data, 0, 0);
+    return c;
+  }
+
+  const spriteSets = { red: [], blue: [] }; // index: charIndex(0-2) -> {pose: image/canvas}
+  CHAR_FOLDERS.forEach((folder, idx) => {
+    const redPoses = {};
+    const bluePoses = {};
+    spriteSets.red[idx] = redPoses;
+    spriteSets.blue[idx] = bluePoses;
+    Object.keys(POSE_FILES).forEach((poseKey) => {
+      const img = new Image();
+      img.src = folder + '/' + POSE_FILES[poseKey];
+      redPoses[poseKey] = img;
+      img.addEventListener('load', () => {
+        bluePoses[poseKey] = recolorRedToBlue(img);
+      });
+    });
+  });
+
+  function isNearBall(p) {
+    return dist(p, ball) < p.radius + ball.radius + 4;
+  }
+
+  function updatePlayerAnim(p, dt) {
+    const st = p.anim;
+    if (p.action) {
+      p.action.t += dt;
+      const a = p.action;
+      if (a.type === 'shoot') {
+        if (a.t < 0.10) st.pose = 'shootPrep';
+        else if (a.t < 0.28) st.pose = 'shootExec';
+        else { p.action = null; }
+      } else if (a.type === 'pass') {
+        if (a.t < 0.08) st.pose = 'passPrep';
+        else if (a.t < 0.20) st.pose = 'passExec';
+        else { p.action = null; }
+      } else if (a.type === 'tackle') {
+        if (a.t < 0.22) st.pose = 'jump';
+        else { p.action = null; }
+      }
+      if (p.action) return;
+    }
+
+    if (Math.abs(p.facing.y) > 0.15) st.flip = p.facing.y < 0;
+
+    const dx = p.x - st.prevX, dy = p.y - st.prevY;
+    st.prevX = p.x; st.prevY = p.y;
+    const speed = dt > 0 ? Math.hypot(dx, dy) / dt : 0;
+
+    if (speed > 4) {
+      if (isNearBall(p)) {
+        st.cycleTimer += dt;
+        const idx = Math.floor(st.cycleTimer * 8) % 3;
+        st.pose = ['dribble1', 'dribble2', 'dribble3'][idx];
+      } else {
+        st.pose = 'dash';
+      }
+    } else {
+      st.pose = 'idle';
+      st.cycleTimer = 0;
+    }
+  }
 
   const HALF_SECONDS = 60; // 前半/後半 各1分
 
@@ -278,29 +402,32 @@
   }
 
   // ---------- entities ----------
-  function makePlayer(team, role, isUser, x, y) {
+  function makePlayer(team, role, isUser, x, y, charIndex) {
     return {
-      team, role, isUser,
+      team, role, isUser, charIndex,
       x, y, vx: 0, vy: 0,
       facing: { x: team === 'A' ? 1 : -1, y: 0 },
       radius: 6,
-      speed: isUser ? 62 : 56,
+      speed: isUser ? 62 : 22,
       home: { x, y },
       carryTime: 0,
+      tackleCooldown: 0,
       color: isUser ? COLORS.user : (team === 'A' ? COLORS.teamA : COLORS.teamB),
+      action: null,
+      anim: { pose: 'idle', cycleTimer: 0, flip: team !== 'A', prevX: x, prevY: y },
     };
   }
 
   // formation: inverted triangle (1 back, 2 forward)
   const teamA = [
-    makePlayer('A', 'defender', false, 110, CY),
-    makePlayer('A', 'forwardTop', true, 210, CY - 50),
-    makePlayer('A', 'forwardBottom', false, 210, CY + 50),
+    makePlayer('A', 'defender', false, 110, CY, 0),
+    makePlayer('A', 'forwardTop', true, 210, CY - 50, 1),
+    makePlayer('A', 'forwardBottom', false, 210, CY + 50, 2),
   ];
   const teamB = [
-    makePlayer('B', 'defender', false, 290, CY),
-    makePlayer('B', 'forwardTop', false, 190, CY - 50),
-    makePlayer('B', 'forwardBottom', false, 190, CY + 50),
+    makePlayer('B', 'defender', false, 290, CY, 0),
+    makePlayer('B', 'forwardTop', false, 190, CY - 50, 1),
+    makePlayer('B', 'forwardBottom', false, 190, CY + 50, 2),
   ];
   const allPlayers = teamA.concat(teamB);
   const userPlayer = teamA.find(p => p.isUser);
@@ -353,13 +480,14 @@
   // ---------- input ----------
   const held = new Set();
   const MOVE_KEYS = new Set(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyW','KeyA','KeyS','KeyD']);
-  const ACTION_KEYS = new Set(['KeyZ','Space','KeyX']);
+  const ACTION_KEYS = new Set(['KeyZ','Space','KeyX','KeyC']);
 
   window.addEventListener('keydown', (e) => {
     if (MOVE_KEYS.has(e.code) || ACTION_KEYS.has(e.code)) e.preventDefault();
     if (MOVE_KEYS.has(e.code)) held.add(e.code);
     if (e.code === 'KeyZ' || e.code === 'Space') { if (!held.has(e.code)) requestShoot(); held.add(e.code); }
     if (e.code === 'KeyX') { if (!held.has(e.code)) requestPass(); held.add(e.code); }
+    if (e.code === 'KeyC') { if (!held.has(e.code)) requestTackle(); held.add(e.code); }
   }, { passive: false });
   window.addEventListener('keyup', (e) => held.delete(e.code));
 
@@ -391,6 +519,8 @@
   document.getElementById('passBtn').addEventListener('click', () => requestPass());
   document.getElementById('shootBtn').addEventListener('touchstart', (e) => { e.preventDefault(); requestShoot(); }, { passive: false });
   document.getElementById('shootBtn').addEventListener('click', () => requestShoot());
+  document.getElementById('tackleBtn').addEventListener('touchstart', (e) => { e.preventDefault(); requestTackle(); }, { passive: false });
+  document.getElementById('tackleBtn').addEventListener('click', () => requestTackle());
 
   function requestShoot() {
     if (net.role === 'guest') sendGuestAction('shoot');
@@ -399,6 +529,10 @@
   function requestPass() {
     if (net.role === 'guest') sendGuestAction('pass');
     else doPass(userPlayer);
+  }
+  function requestTackle() {
+    if (net.role === 'guest') sendGuestAction('tackle');
+    else doTackle(userPlayer);
   }
 
   // ---------- actions ----------
@@ -415,14 +549,15 @@
     return dir > 0 ? PX0 : PX1;
   }
 
-  function doShoot(p) {
+  function doShoot(p, power) {
     if (!isCarrier(p)) return;
     const dir = p.facing;
-    const power = 190;
-    ball.vx = dir.x * power;
-    ball.vy = dir.y * power * 0.6;
+    const pw = power || (p.isUser ? 190 : 95); // bot の shot は弱い
+    ball.vx = dir.x * pw;
+    ball.vy = dir.y * pw * 0.6;
     ball.carrier = null;
     ball.kickCooldown = 0.25;
+    p.action = { type: 'shoot', t: 0 };
   }
 
   function doPass(p) {
@@ -444,22 +579,51 @@
     ball.vy = toBest.y * power;
     ball.carrier = null;
     ball.kickCooldown = 0.2;
+    p.action = { type: 'pass', t: 0 };
+  }
+
+  const TACKLE_RANGE = 14;
+  function doTackle(p) {
+    if (isCarrier(p)) return;
+    if (p.tackleCooldown > 0) return;
+    p.tackleCooldown = 0.5;
+    let target = null, bestD = Infinity;
+    for (const o of allPlayers) {
+      if (o.team === p.team || !isCarrier(o)) continue;
+      const d = dist(p, o);
+      if (d < TACKLE_RANGE && d < bestD) { bestD = d; target = o; }
+    }
+    p.action = { type: 'tackle', t: 0 };
+    if (!target) return;
+    // 成功率: 完全な奪取ではなくボールをこぼす（ルーズボールにする）
+    ball.carrier = null;
+    ball.kickCooldown = 0.15;
+    const away = normalize(ball.x - target.x, ball.y - target.y);
+    ball.vx = (away.x || (Math.random() - 0.5)) * 60;
+    ball.vy = (away.y || (Math.random() - 0.5)) * 60;
+    target.carryTime = 0;
+    target.action = null;
   }
 
   // ---------- AI ----------
   function teamOf(t) { return t === 'A' ? teamA : teamB; }
 
+  const BOT_CHASE_RANGE = 55; // この距離より遠いボールは追わない（ユーザー頼み）
+
   function pickChaser(team) {
     const players = teamOf(team);
-    let best = players[0], bestD = Infinity;
+    let best = null, bestD = Infinity;
     for (const p of players) {
+      if (p.isUser) continue;
       const d = dist(p, ball);
       if (d < bestD) { bestD = d; best = p; }
     }
+    if (best && bestD > BOT_CHASE_RANGE) return null;
     return best;
   }
 
   function updateBotAI(p, dt) {
+    if (p.tackleCooldown > 0) p.tackleCooldown -= dt;
     const chaser = pickChaser(p.team);
     const teamHasCarrier = teamOf(p.team).some(t => isCarrier(t));
 
@@ -467,22 +631,22 @@
       p.carryTime += dt;
       const goalX = opponentGoalX(p.team);
       const distToGoal = Math.abs(goalX - p.x);
-      const aligned = Math.abs(p.y - CY) < 22;
+      const aligned = Math.abs(p.y - CY) < 18;
       // steer toward goal while dribbling
       const target = { x: goalX, y: CY };
       steerTowards(p, target, dt);
-      if (distToGoal < 90 && aligned) {
+      if (distToGoal < 45 && aligned) {
         doShoot(p);
-      } else if (p.carryTime > 1.1) {
+      } else if (p.carryTime > 2.2) {
         doPass(p);
       }
       return;
     }
 
-    // defenders actively contest anyone threatening their own half
+    // defenders only weakly contest anyone very close to their own goal
     if (p.role === 'defender') {
       const myGoalX = ownGoalX(p.team);
-      if (Math.abs(ball.x - myGoalX) < 170) {
+      if (Math.abs(ball.x - myGoalX) < 60) {
         steerTowards(p, ball, dt);
         return;
       }
@@ -526,6 +690,7 @@
       userPlayer.vx = 0; userPlayer.vy = 0;
     }
     if (isCarrier(userPlayer)) userPlayer.carryTime += dt;
+    if (userPlayer.tackleCooldown > 0) userPlayer.tackleCooldown -= dt;
   }
 
   function integratePlayer(p, dt) {
@@ -726,20 +891,11 @@
     ctx.stroke();
   }
 
-  function drawPlayer(p) {
-    const proj = project(p.x, p.y);
+  function drawPlayerBlock(p, proj) {
     const r = p.radius * proj.scale;
     const sx = proj.x, sy = proj.y;
-
-    // shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.beginPath();
-    ctx.ellipse(sx, sy, r * 0.9, r * 0.4, 0, 0, Math.PI * 2);
-    ctx.fill();
-
     const bodyTop = sy - r * 2;
 
-    // body (blocky pixel look)
     ctx.fillStyle = p.color;
     ctx.fillRect(Math.round(sx - r), Math.round(bodyTop), r * 2, r * 2);
 
@@ -752,6 +908,42 @@
     const fy = Math.round(bodyTop + r + p.facing.y * (r - 1));
     const fs = Math.max(1, Math.round(2 * proj.scale));
     ctx.fillRect(fx - fs / 2, fy - fs / 2, fs, fs);
+    return bodyTop;
+  }
+
+  function drawPlayer(p) {
+    const proj = project(p.x, p.y);
+    const sx = proj.x, sy = proj.y;
+    const r = p.radius * proj.scale;
+
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath();
+    ctx.ellipse(sx, sy, r * 0.9, r * 0.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    const set = p.team === 'A' ? spriteSets.blue : spriteSets.red;
+    const poses = set[p.charIndex];
+    const img = poses && poses[p.anim.pose];
+    let bodyTop;
+
+    if (img && (img instanceof HTMLCanvasElement || img.complete)) {
+      const dh = SPRITE_BASE_HEIGHT * proj.scale;
+      const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+      const dw = dh * (iw / ih);
+      bodyTop = sy - dh;
+      ctx.save();
+      if (p.anim.flip) {
+        ctx.translate(sx, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(img, Math.round(-dw / 2), Math.round(bodyTop), Math.round(dw), Math.round(dh));
+      } else {
+        ctx.drawImage(img, Math.round(sx - dw / 2), Math.round(bodyTop), Math.round(dw), Math.round(dh));
+      }
+      ctx.restore();
+    } else {
+      bodyTop = drawPlayerBlock(p, proj);
+    }
 
     if (p.isUser) {
       ctx.fillStyle = p.markerColor || COLORS.user;
@@ -824,7 +1016,8 @@
     ctx.fillText(msg, SCREEN_CENTER_X, H / 2);
   }
 
-  function render() {
+  function render(dt) {
+    for (const p of allPlayers) updatePlayerAnim(p, dt);
     drawPitch();
     const drawables = allPlayers.concat([ball]);
     drawables.sort((a, b) => b.x - a.x); // far-to-near painter's order (奥=PX1側 から手前=PX0側の順)
@@ -841,7 +1034,7 @@
     last = now;
     if (net.role !== 'guest') update(dt);
     updateCamera(dt);
-    render();
+    render(dt);
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
