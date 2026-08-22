@@ -481,7 +481,7 @@ function shootTarget(p){
 }
 
 function doShoot(p){
-  if (!p || !hasBall(p) || p.down > 0) return;
+  if (!p || !hasBall(p) || p.down > 0 || M.battleCool > 0) return;
   const gx = goalXFor(p.team);
   let dir;
   if (p.humanTag){
@@ -593,7 +593,17 @@ function startBattle(a, b){
 }
 
 function resolveBattle(){
-  const r = beatsHand(B.handA, B.handB);
+  let r = beatsHand(B.handA, B.handB);
+  // CPUがあいこ以外で人間に勝った時、たまに引き分けに救済してCPUの体感的な強さを下げる
+  const me0 = myPlayer();
+  if (r !== 0 && B.interactive && me0){
+    const meIsA = B.a.humanTag === 'you';
+    const humanWon = meIsA ? r > 0 : r < 0;
+    if (!humanWon && Math.random() < 0.3){
+      if (meIsA) B.handB = B.handA; else B.handA = B.handB;
+      r = 0;
+    }
+  }
   if (r === 0){
     B.result = 'draw';
     Snd.se('se_ui_click', { vol:0.8, rate:0.9 });
@@ -613,7 +623,7 @@ function resolveBattle(){
 function finishBattle(){
   const win = B.winner, lose = B.loser;
   B.on = false;
-  M.battleCool = 1.2;
+  M.battleCool = 1.6;                             // 決着直後は少し操作を落ち着かせる（即シュート禁止にも使う）
   if (win && lose){
     knockDown(lose, win.x, win.y);
     Snd.se('se_blow_away', { vol:0.95 });
@@ -658,7 +668,7 @@ function updateBattle(dt){
       B.phase = 'reveal'; B.t = 0;
     }
   } else if (B.phase === 'reveal'){
-    const wait = B.interactive ? 1.15 : 0.55;
+    const wait = B.interactive ? 1.9 : 0.55;
     if (B.t > wait){
       if (B.result === 'draw'){
         B.handA = B.handB = null;
@@ -1335,7 +1345,7 @@ function drawMatchHud(){
   txt(String(M.scoreA), x+31, 23, { size:10, kind:'px', color:'#fff', ow:1 });
   txt(String(M.scoreB), x+w-31, 23, { size:10, kind:'px', color:'#fff', ow:1 });
   txt(fmtTime(M.timeLeft), VW/2, 13, { size:10, kind:'px', color:'#fff' });
-  txt((M.half===1?'まえはん':'こうはん'), VW/2, 24, { size:9, color:'#bcd' });
+  txt((M.half===1?'ぜんはん':'こうはん'), VW/2, 24, { size:9, color:'#bcd' });
 
   if (M.state === 'goal')      banner('ゴール！', COL.warn);
   else if (M.state === 'halftime') banner('ハーフタイム', '#9fe8ff');
