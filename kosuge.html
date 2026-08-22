@@ -811,11 +811,12 @@ function handHitTest(pt){
 /* =========================================================================
    10. AI
    ========================================================================= */
+const BOT_SPEED_MULT = 0.75; // CPU(steerで動く選手)だけ減速。人間操作(updateHuman)には影響しない
 function steer(p, tx, ty, dt, scale){
   const dx = tx-p.x, dy = ty-p.y, d = Math.hypot(dx,dy);
   if (d > 2){
     const v = norm(dx,dy);
-    const sp = p.speed * (scale == null ? 1 : scale);
+    const sp = p.speed * BOT_SPEED_MULT * (scale == null ? 1 : scale);
     p.vx = v.x*sp; p.vy = v.y*sp;
     p.face = v;
   } else { p.vx = 0; p.vy = 0; }
