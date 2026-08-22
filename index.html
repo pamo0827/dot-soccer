@@ -4,16 +4,23 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI-Hackathon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=Inter:wght@300;400;500;600&family=Noto+Serif+JP:wght@400;600&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0f1115;
-    --surface: #171a21;
-    --text: #e8eaed;
-    --muted: #8b93a1;
-    --accent: #5eead4;
-    --border: #2a2f3a;
+    --bg: #0a0a0d;
+    --bg-2: #14131a;
+    --ink: #f4efe4;
+    --muted: #9c9689;
+    --gold: #d4af7a;
+    --gold-soft: rgba(212, 175, 122, 0.35);
+    --surface: rgba(255, 255, 255, 0.045);
+    --surface-border: rgba(212, 175, 122, 0.22);
+    --stage-color: #ffb56b;
   }
   * { box-sizing: border-box; }
+  html, body { height: 100%; }
   body {
     margin: 0;
     min-height: 100vh;
@@ -21,60 +28,1328 @@
     align-items: center;
     justify-content: center;
     background: var(--bg);
-    color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    font-family: "Inter", "Noto Serif JP", -apple-system, BlinkMacSystemFont, sans-serif;
+    overflow: hidden;
+    position: relative;
+    cursor: default;
   }
+
+  /* ===== HOME SCREEN ===== */
+  .aurora {
+    position: absolute;
+    inset: -20%;
+    z-index: 0;
+    background:
+      radial-gradient(38% 32% at 18% 22%, rgba(212, 175, 122, 0.16), transparent 70%),
+      radial-gradient(30% 28% at 82% 78%, rgba(122, 155, 212, 0.12), transparent 70%),
+      radial-gradient(26% 24% at 78% 18%, rgba(180, 122, 212, 0.09), transparent 70%),
+      conic-gradient(from 0deg at 50% 50%, var(--bg), var(--bg-2), var(--bg));
+    animation: drift 30s linear infinite;
+    filter: blur(10px);
+  }
+  @keyframes drift {
+    0%   { transform: rotate(0deg) scale(1.15); }
+    100% { transform: rotate(360deg) scale(1.15); }
+  }
+
+  .spotlight {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: radial-gradient(480px circle at var(--mx, 50%) var(--my, 50%), rgba(212, 175, 122, 0.07), transparent 60%);
+    pointer-events: none;
+    transition: background 0.15s ease-out;
+  }
+
+  .grain {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    opacity: 0.05;
+    pointer-events: none;
+    mix-blend-mode: overlay;
+  }
+
+  #homeScreen { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+  #homeScreen.hidden { display: none; }
+
   .card {
+    position: relative;
+    z-index: 3;
     background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 48px 56px;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--surface-border);
+    border-radius: 4px;
+    padding: 64px 68px;
     text-align: center;
-    max-width: 440px;
+    max-width: 480px;
+    box-shadow:
+      0 30px 80px rgba(0, 0, 0, 0.55),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    animation: rise 0.9s cubic-bezier(0.16, 1, 0.3, 1);
   }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(22px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .rule {
+    width: 36px;
+    height: 1px;
+    background: var(--gold);
+    margin: 0 auto 22px;
+    opacity: 0.7;
+  }
+
   .badge {
     display: inline-block;
-    padding: 4px 10px;
+    padding: 5px 16px;
     border-radius: 999px;
-    background: rgba(94, 234, 212, 0.12);
-    color: var(--accent);
-    font-size: 12px;
-    letter-spacing: 0.04em;
+    border: 1px solid var(--gold-soft);
+    color: var(--gold);
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.22em;
     text-transform: uppercase;
-    margin-bottom: 16px;
+    margin-bottom: 26px;
   }
+
   h1 {
-    font-size: 28px;
-    margin: 0 0 8px;
+    font-family: "Playfair Display", "Noto Serif JP", serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 42px;
+    margin: 0 0 14px;
+    background: linear-gradient(120deg, #ffffff 10%, var(--gold) 60%, #ffffff 90%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    letter-spacing: -0.01em;
   }
+
   p {
     color: var(--muted);
-    line-height: 1.6;
+    line-height: 1.9;
     margin: 0;
+    font-size: 14px;
+    font-weight: 300;
+    letter-spacing: 0.02em;
   }
+
   .meta {
-    margin-top: 24px;
+    margin-top: 34px;
     padding-top: 24px;
-    border-top: 1px solid var(--border);
-    font-size: 13px;
+    border-top: 1px solid var(--surface-border);
+    font-size: 11px;
+    letter-spacing: 0.08em;
     color: var(--muted);
     display: flex;
     justify-content: space-between;
+    align-items: center;
+    text-transform: uppercase;
+  }
+
+  .start-btn {
+    margin-top: 32px;
+    width: 100%;
+    padding: 15px;
+    background: transparent;
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: background 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+  }
+  .start-btn:hover {
+    background: var(--gold);
+    color: #14120c;
+    box-shadow: 0 0 30px rgba(212, 175, 122, 0.35);
+  }
+
+  /* music control */
+  .music {
+    position: fixed;
+    right: 28px;
+    bottom: 28px;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .music-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 16px;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  .music-bars.on { opacity: 1; }
+  .music-bars span {
+    width: 3px;
+    height: 4px;
+    background: var(--gold);
+    border-radius: 2px;
+    transform-origin: bottom;
+  }
+
+  .music-btn {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    border: 1px solid var(--surface-border);
+    background: var(--surface);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--gold);
+    transition: border-color 0.25s ease, transform 0.25s ease;
+  }
+  .music-btn:hover { border-color: var(--gold-soft); transform: scale(1.05); }
+  .music-btn svg { width: 16px; height: 16px; }
+  .music-btn .pause { display: none; }
+  .music-btn.playing .play { display: none; }
+  .music-btn.playing .pause { display: block; }
+
+  /* ===== 3D ROLLING GOLF GAME ===== */
+  #gameScreen, #stageClearScreen, #finalClearScreen, #gameOverScreen {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: "Fredoka", "Noto Serif JP", sans-serif;
+    background: radial-gradient(ellipse at 50% 30%, color-mix(in srgb, var(--stage-color) 18%, #04040a), #04040a 75%);
+    transition: background 0.6s ease;
+  }
+  #gameScreen.show, #stageClearScreen.show, #finalClearScreen.show, #gameOverScreen.show { display: flex; }
+
+  .stage-banner {
+    color: var(--stage-color);
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-shadow: 0 0 14px color-mix(in srgb, var(--stage-color) 70%, transparent);
+    margin-bottom: 4px;
+    text-align: center;
+    transition: color 0.6s ease, text-shadow 0.6s ease;
+  }
+  .kusoge-sub {
+    color: #cfc9d8;
+    font-size: 12.5px;
+    font-weight: 500;
+    margin-bottom: 14px;
+    opacity: 0.85;
+    text-align: center;
+  }
+
+  .canvas-frame {
+    position: relative;
+    padding: 8px;
+    border-radius: 14px;
+    background: linear-gradient(160deg, rgba(255,255,255,0.08), rgba(255,255,255,0.01));
+    border: 1px solid color-mix(in srgb, var(--stage-color) 45%, transparent);
+    box-shadow: 0 0 50px color-mix(in srgb, var(--stage-color) 25%, transparent), 0 20px 60px rgba(0,0,0,0.6);
+    transition: border-color 0.6s ease, box-shadow 0.6s ease;
+    line-height: 0;
+  }
+  #gameCanvas {
+    display: block;
+    border-radius: 8px;
+    max-width: 92vw;
+    max-height: 58vh;
+    touch-action: none;
+  }
+  .canvas-frame.shake { animation: shake 0.25s; }
+  @keyframes shake {
+    0%,100% { transform: translate(0,0); }
+    25% { transform: translate(-8px, 4px); }
+    50% { transform: translate(8px, -4px); }
+    75% { transform: translate(-6px, -6px); }
+  }
+
+  .hud {
+    display: flex;
+    justify-content: space-between;
+    width: min(760px, 92vw);
+    margin-top: 14px;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.6);
+  }
+  .hud .wind-indicator, .hud .goal-indicator, .hud .hp-indicator { display: flex; align-items: center; gap: 6px; }
+  .hp-indicator { letter-spacing: 2px; }
+  .arrow-icon { display: inline-block; transition: transform 0.2s linear; }
+  .progress-wrap {
+    width: min(760px, 92vw);
+    height: 10px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.08);
+    margin-top: 8px;
+    overflow: hidden;
+  }
+  #progressBar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--stage-color), #fff);
+    transition: background 0.6s ease, width 0.15s ease-out;
+  }
+
+  /* stage clear / final clear */
+  .clear-title {
+    font-size: 34px;
+    font-weight: 700;
+    color: #fff;
+    text-align: center;
+    text-shadow: 0 0 24px color-mix(in srgb, var(--stage-color) 80%, transparent), 3px 3px 0 rgba(0,0,0,0.5);
+    animation: pop 0.6s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  #finalClearScreen .clear-title { font-size: 46px; }
+  @keyframes pop {
+    from { transform: scale(0); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  .clear-sub {
+    margin-top: 18px;
+    color: #d8d2e6;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    text-align: center;
+  }
+  .clear-actions { margin-top: 30px; display: flex; gap: 14px; }
+  .kusoge-btn {
+    font-family: "Fredoka", sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 13px 26px;
+    background: rgba(255,255,255,0.05);
+    color: #fff;
+    border: 1px solid var(--stage-color);
+    border-radius: 999px;
+    cursor: pointer;
+    backdrop-filter: blur(6px);
+    transition: background 0.2s ease, transform 0.15s ease;
+  }
+  .kusoge-btn:hover { background: color-mix(in srgb, var(--stage-color) 25%, transparent); }
+  .kusoge-btn:active { transform: translateY(2px); }
+
+  .firework-piece {
+    position: absolute;
+    top: -20px;
+    width: 8px;
+    height: 8px;
+    z-index: 1;
+    animation: fall linear forwards;
+  }
+  @keyframes fall {
+    to { transform: translateY(110vh) rotate(720deg); }
   }
 </style>
 </head>
 <body>
-  <div class="card">
-    <span class="badge">Deploy OK</span>
-    <h1>AI-Hackathon</h1>
-    <p>Vercelへのデプロイ確認用テストページです。</p>
-    <div class="meta">
-      <span>GitHub → Vercel</span>
-      <span id="time"></span>
+
+  <!-- ================= HOME SCREEN ================= -->
+  <div id="homeScreen">
+    <div class="aurora"></div>
+    <div class="spotlight" id="spotlight"></div>
+    <svg class="grain" xmlns="http://www.w3.org/2000/svg">
+      <filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/></filter>
+      <rect width="100%" height="100%" filter="url(#noise)"/>
+    </svg>
+
+    <div class="card">
+      <div class="rule"></div>
+      <span class="badge">Deploy OK</span>
+      <h1>AI&nbsp;Hackathon</h1>
+      <p>Vercelへのデプロイ確認用テストページです。</p>
+      <button class="start-btn" id="startBtn">START</button>
+      <div class="meta">
+        <span>GitHub → Vercel</span>
+        <span id="time"></span>
+      </div>
     </div>
   </div>
-  <script>
+
+  <div class="music">
+    <div class="music-bars" id="bars">
+      <span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <button class="music-btn" id="musicBtn" aria-label="Toggle ambient music">
+      <svg class="play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      <svg class="pause" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+    </button>
+  </div>
+
+  <!-- ================= GAME SCREEN ================= -->
+  <div id="gameScreen">
+    <div class="stage-banner" id="stageBanner">STAGE 1 / 3 — グリーンパーク</div>
+    <div class="kusoge-sub">WASD・矢印キー・スワイプで転がってゴール⛳を目指せ！岩と風に注意！</div>
+    <div class="canvas-frame" id="canvasFrame">
+      <canvas id="gameCanvas" width="760" height="440"></canvas>
+    </div>
+    <div class="hud">
+      <span id="hp" class="hp-indicator">❤️❤️❤️</span>
+      <span class="wind-indicator">🌬️ <span id="windArrow" class="arrow-icon">➤</span></span>
+      <span class="goal-indicator"><span id="goalArrow" class="arrow-icon">➤</span> ⛳ <span id="distanceLabel">0%</span></span>
+    </div>
+    <div class="progress-wrap"><div id="progressBar"></div></div>
+  </div>
+
+  <!-- ================= STAGE CLEAR ================= -->
+  <div id="stageClearScreen">
+    <div class="clear-title" id="stageClearTitle">HOLE 1 IN!</div>
+    <div class="clear-sub">つぎのホールへ…</div>
+  </div>
+
+  <!-- ================= FINAL CLEAR ================= -->
+  <div id="finalClearScreen">
+    <div class="clear-title">ALL CLEAR!!</div>
+    <div class="clear-sub">3ホール制覇！壮大な冒険、お疲れさまでした🎉⛳</div>
+    <div class="clear-actions">
+      <button class="kusoge-btn" id="retryBtn">最初から</button>
+      <button class="kusoge-btn" id="homeBtn">ホームへ</button>
+    </div>
+  </div>
+
+  <!-- ================= GAME OVER ================= -->
+  <div id="gameOverScreen">
+    <div class="clear-title" id="gameOverTitle">GAME OVER</div>
+    <div class="clear-sub" id="gameOverSub">やられてしまった…</div>
+    <div class="clear-actions">
+      <button class="kusoge-btn" id="gameOverRetryBtn">このホールをやり直す</button>
+      <button class="kusoge-btn" id="gameOverHomeBtn">ホームへ</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+
     document.getElementById('time').textContent = new Date().toLocaleString('ja-JP');
+
+    // cursor spotlight
+    const spotlight = document.getElementById('spotlight');
+    window.addEventListener('pointermove', (e) => {
+      spotlight.style.setProperty('--mx', e.clientX + 'px');
+      spotlight.style.setProperty('--my', e.clientY + 'px');
+    });
+
+    // ================= PROCEDURAL BGM (2-minute seamless loop) =================
+    const NOTE = {
+      C3:130.81, D3:146.83, E3:164.81, F3:174.61, G3:196.00, A3:220.00, B3:246.94,
+      C4:261.63, D4:293.66, E4:329.63, F4:349.23, G4:392.00, A4:440.00, B4:493.88,
+      C5:523.25, D5:587.33, E5:659.25, G5:783.99
+    };
+    // 16 chords x 7.5s = 120s (2 min), loops seamlessly back to chord 1
+    const progression = [
+      ['A3','C4','E4','A4'], ['F3','A3','C4','F4'], ['C3','E3','G3','C4'], ['G3','B3','D4','G4'],
+      ['E3','G3','B3','E4'], ['A3','C4','E4','A4'], ['D3','F3','A3','D4'], ['G3','B3','D4','G4'],
+      ['A3','E4','A4','C5'], ['F3','C4','F4','A4'], ['C3','G3','C4','E4'], ['G3','D4','G4','B4'],
+      ['D3','A3','D4','F4'], ['E3','B3','E4','G4'], ['A3','C4','E4','A4'], ['A3','B3','E4','A4'],
+    ];
+    const CHORD_DUR = 7.5;
+
+    let audioCtx, master, delayNode, filter, analyser;
+    let chordIndex = 0, chordTimer = null, isPlaying = false;
+
+    function initAudio() {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      master = audioCtx.createGain();
+      master.gain.value = 0.0001;
+
+      filter = audioCtx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 1800;
+
+      delayNode = audioCtx.createDelay(2.0);
+      delayNode.delayTime.value = 0.55;
+      const feedback = audioCtx.createGain();
+      feedback.gain.value = 0.32;
+      const delayMix = audioCtx.createGain();
+      delayMix.gain.value = 0.35;
+      delayNode.connect(feedback);
+      feedback.connect(delayNode);
+      delayNode.connect(delayMix);
+
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 32;
+
+      filter.connect(master);
+      filter.connect(delayNode);
+      delayMix.connect(master);
+      master.connect(analyser);
+      analyser.connect(audioCtx.destination);
+
+      master.gain.linearRampToValueAtTime(0.16, audioCtx.currentTime + 3);
+    }
+
+    function sparkle(notes, now, dur) {
+      for (let i = 0; i < 4; i++) {
+        const t = now + (i / 4) * dur + Math.random() * 0.3;
+        const freq = NOTE[notes[Math.floor(Math.random() * notes.length)]] * 2;
+        const osc = audioCtx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        const g = audioCtx.createGain();
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.035, t + 0.03);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+        osc.connect(g);
+        g.connect(delayNode);
+        osc.start(t);
+        osc.stop(t + 0.7);
+      }
+    }
+
+    function playChord(notes) {
+      const now = audioCtx.currentTime;
+      const dur = CHORD_DUR;
+
+      notes.forEach((n, i) => {
+        const freq = NOTE[n];
+        [1, 1.003].forEach((detune) => {
+          const osc = audioCtx.createOscillator();
+          osc.type = i === 0 ? 'triangle' : 'sine';
+          osc.frequency.value = freq * detune;
+
+          const gain = audioCtx.createGain();
+          gain.gain.setValueAtTime(0, now);
+          gain.gain.linearRampToValueAtTime(0.09 / notes.length, now + 2.4);
+          gain.gain.linearRampToValueAtTime(0.06 / notes.length, now + dur - 2);
+          gain.gain.linearRampToValueAtTime(0, now + dur);
+
+          osc.connect(gain);
+          gain.connect(filter);
+          osc.start(now);
+          osc.stop(now + dur + 0.1);
+        });
+      });
+
+      const bassOsc = audioCtx.createOscillator();
+      bassOsc.type = 'sine';
+      bassOsc.frequency.value = NOTE[notes[0]] / 2;
+      const bassGain = audioCtx.createGain();
+      bassGain.gain.setValueAtTime(0, now);
+      bassGain.gain.linearRampToValueAtTime(0.05, now + 2);
+      bassGain.gain.linearRampToValueAtTime(0.05, now + dur - 2);
+      bassGain.gain.linearRampToValueAtTime(0, now + dur);
+      bassOsc.connect(bassGain);
+      bassGain.connect(filter);
+      bassOsc.start(now);
+      bassOsc.stop(now + dur + 0.1);
+
+      sparkle(notes, now, dur);
+
+      filter.frequency.cancelScheduledValues(now);
+      filter.frequency.setValueAtTime(filter.frequency.value, now);
+      filter.frequency.linearRampToValueAtTime(2400, now + dur / 2);
+      filter.frequency.linearRampToValueAtTime(1500, now + dur);
+    }
+
+    function tick() {
+      playChord(progression[chordIndex % progression.length]);
+      chordIndex++;
+    }
+
+    const bars = document.querySelectorAll('#bars span');
+    const barsWrap = document.getElementById('bars');
+    let rafId;
+    function animateBars() {
+      if (!analyser) return;
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(data);
+      bars.forEach((bar, i) => {
+        const v = data[i + 1] || 0;
+        bar.style.height = 4 + (v / 255) * 16 + 'px';
+      });
+      rafId = requestAnimationFrame(animateBars);
+    }
+
+    const musicBtn = document.getElementById('musicBtn');
+    function stopMusic() {
+      if (!isPlaying) return;
+      isPlaying = false;
+      musicBtn.classList.remove('playing');
+      barsWrap.classList.remove('on');
+      master.gain.cancelScheduledValues(audioCtx.currentTime);
+      master.gain.linearRampToValueAtTime(0.0001, audioCtx.currentTime + 1.2);
+      clearInterval(chordTimer);
+      cancelAnimationFrame(rafId);
+      setTimeout(() => bars.forEach(b => b.style.height = '4px'), 300);
+    }
+    function startMusic() {
+      if (isPlaying) return;
+      if (!audioCtx) initAudio();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      isPlaying = true;
+      musicBtn.classList.add('playing');
+      barsWrap.classList.add('on');
+      tick();
+      chordTimer = setInterval(tick, CHORD_DUR * 1000);
+      animateBars();
+    }
+    musicBtn.addEventListener('click', () => { isPlaying ? stopMusic() : startMusic(); });
+
+    // ---- tiny sfx engine ----
+    let sfxCtx;
+    function beep(freq, dur, type, vol) {
+      if (!sfxCtx) sfxCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = sfxCtx.createOscillator();
+      const gain = sfxCtx.createGain();
+      osc.type = type || 'square';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(vol || 0.12, sfxCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, sfxCtx.currentTime + dur);
+      osc.connect(gain);
+      gain.connect(sfxCtx.destination);
+      osc.start();
+      osc.stop(sfxCtx.currentTime + dur);
+    }
+    const sfxHitRock = () => beep(140, 0.18, 'triangle', 0.13);
+    const sfxStageClear = () => [659, 880, 1046].forEach((f, i) => setTimeout(() => beep(f, 0.22, 'square', 0.11), i * 110));
+    const sfxAllClear = () => [523, 659, 784, 1046, 1318].forEach((f, i) => setTimeout(() => beep(f, 0.3, 'square', 0.12), i * 130));
+    const sfxJump = () => beep(600, 0.1, 'square', 0.1);
+    const sfxDamage = () => beep(180, 0.2, 'sawtooth', 0.13);
+    const sfxGameOver = () => [392, 330, 262, 196].forEach((f, i) => setTimeout(() => beep(f, 0.35, 'triangle', 0.12), i * 180));
+    function sfxBoom() {
+      if (!sfxCtx) sfxCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = sfxCtx.createOscillator();
+      const gain = sfxCtx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(320, sfxCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(50, sfxCtx.currentTime + 0.35);
+      gain.gain.setValueAtTime(0.18, sfxCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, sfxCtx.currentTime + 0.4);
+      osc.connect(gain);
+      gain.connect(sfxCtx.destination);
+      osc.start();
+      osc.stop(sfxCtx.currentTime + 0.4);
+    }
+
+    // ================= 3D ROLLING GOLF GAME =================
+    const homeScreen = document.getElementById('homeScreen');
+    const gameScreen = document.getElementById('gameScreen');
+    const stageClearScreen = document.getElementById('stageClearScreen');
+    const finalClearScreen = document.getElementById('finalClearScreen');
+    const gameOverScreen = document.getElementById('gameOverScreen');
+    const gameOverSub = document.getElementById('gameOverSub');
+    const canvas = document.getElementById('gameCanvas');
+    const canvasFrame = document.getElementById('canvasFrame');
+    const distanceLabel = document.getElementById('distanceLabel');
+    const progressBar = document.getElementById('progressBar');
+    const stageBanner = document.getElementById('stageBanner');
+    const stageClearTitle = document.getElementById('stageClearTitle');
+    const windArrowEl = document.getElementById('windArrow');
+    const goalArrowEl = document.getElementById('goalArrow');
+    const hpEl = document.getElementById('hp');
+    const kusogeSub = document.querySelector('.kusoge-sub');
+
+    const STAGES = [
+      {
+        name: '第一幕：グリーンパーク', color: '#ffb56b',
+        hint: 'SPACE/タップでジャンプして谷を飛び越えろ！岩に当たるとダメージ！',
+        sky: 0x1a2a1c, fog: 0x0c1610, ground: 0x2f6b3f,
+        bounds: { x: 14, z: 24 }, start: { x: 0, z: 20 }, goal: { x: 0, z: -20 },
+        wind: { angle: Math.PI * 0.15, strength: 0.6, oscAmp: 0.3, oscSpeed: 0.4, swirl: 0 },
+        rocks: [
+          { x: -6, z: 14, s: 1.1 }, { x: 5, z: 11, s: 0.9 }, { x: -8, z: -2, s: 1.2 },
+          { x: 7, z: -4, s: 1.0 }, { x: -3, z: -17, s: 1.0 },
+        ],
+        gaps: [
+          { x1: -14, x2: 14, z1: 2, z2: 6 },
+          { x1: -14, x2: 14, z1: -10, z2: -13 },
+        ],
+      },
+      {
+        name: '第二幕：ダイナマイト渓谷', color: '#14d1ff',
+        hint: '地雷を踏むと大ジャンプ！谷をぶっ飛んでゴールを目指せ！',
+        sky: 0x2a1c12, fog: 0x160e08, ground: 0x8a6a3c,
+        bounds: { x: 14, z: 28 }, start: { x: 0, z: 23 }, goal: { x: 0, z: -23 },
+        wind: { angle: -Math.PI / 2, strength: 1.15, oscAmp: 0.6, oscSpeed: 0.6, swirl: 0 },
+        rocks: [
+          { x: -11, z: 14, s: 1.3 }, { x: 11, z: 14, s: 1.2 }, { x: -10, z: -19, s: 1.2 },
+        ],
+        gaps: [
+          { x1: -14, x2: 14, z1: -1.5, z2: 4 },
+        ],
+        mines: [
+          { x: -5, z: 7 }, { x: 5, z: 7 }, { x: 0, z: -14 },
+        ],
+      },
+      {
+        name: '第三幕：リバー・シャークベイ', color: '#ffd76b',
+        hint: '石を飛び移って川を渡れ！サメに食べられるとゲームオーバー！',
+        sky: 0x0a0818, fog: 0x050414, ground: 0x14211f,
+        bounds: { x: 16, z: 30 }, start: { x: 0, z: 25 }, goal: { x: 0, z: -25 },
+        wind: { angle: 0, strength: 0, oscAmp: 0, oscSpeed: 0, swirl: 0 },
+        rocks: [
+          { x: -9, z: 18, s: 1.1 }, { x: 9, z: -19, s: 1.1 },
+        ],
+        river: {
+          z1: -3, z2: 3,
+          stones: [
+            { x: -8, z: 0, r: 1.0, height: 0.3 },
+            { x: -4, z: 0, r: 1.0, height: 0.3 },
+            { x: 0, z: 0, r: 1.0, height: 0.3 },
+            { x: 4, z: 0, r: 1.0, height: 0.3 },
+            { x: 8, z: 0, r: 1.0, height: 0.3 },
+          ],
+          strikeSpots: [-10, -6, -2, 2, 6, 10],
+        },
+      },
+    ];
+
+    const PLAYER_RADIUS = 0.85;
+    const CUBE_HALF = 0.6;
+    const CAPTURE_RADIUS = 1.2;
+    const ACCEL = 16, MAX_SPEED = 8, DAMPING = 0.9;
+    const GRAVITY = 24, JUMP_VELOCITY = 9.5;
+    const HP_MAX = 3;
+
+    let renderer, scene, camera, clock;
+    let player, stageGroup, activeRocks, windParticles, mineList, sharkMesh, rippleMesh, sharkState;
+    let stageIdx = 0, velocity, cleared, startPos, goalPos, bounds, windCfg;
+    let gameRunning = false;
+    let hp = HP_MAX, grounded = true, jumpRequested = false;
+    let invincibleUntil = 0, launchLockUntil = 0;
+    const input = { x: 0, z: 0 };
+    let touchActive = false, touchStartX = 0, touchStartY = 0, touchStartTime = 0;
+
+    function init3D() {
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(canvas.width, canvas.height, false);
+      renderer.shadowMap.enabled = true;
+
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(55, canvas.width / canvas.height, 0.1, 200);
+      clock = new THREE.Clock();
+
+      const ambient = new THREE.AmbientLight(0xffffff, 0.55);
+      scene.add(ambient);
+      const sun = new THREE.DirectionalLight(0xffffff, 1.1);
+      sun.position.set(10, 18, 8);
+      sun.castShadow = true;
+      sun.shadow.mapSize.set(1024, 1024);
+      sun.shadow.camera.left = -24;
+      sun.shadow.camera.right = 24;
+      sun.shadow.camera.top = 24;
+      sun.shadow.camera.bottom = -24;
+      sun.shadow.camera.far = 60;
+      scene.add(sun);
+
+      const playerMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35, metalness: 0.15 });
+      player = new THREE.Mesh(new THREE.BoxGeometry(CUBE_HALF * 2, CUBE_HALF * 2, CUBE_HALF * 2), playerMat);
+      player.castShadow = true;
+      scene.add(player);
+
+      stageGroup = new THREE.Group();
+      scene.add(stageGroup);
+
+      windParticles = [];
+      const streakGeo = new THREE.PlaneGeometry(0.6, 0.05);
+      for (let i = 0; i < 26; i++) {
+        const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, side: THREE.DoubleSide });
+        const mesh = new THREE.Mesh(streakGeo, mat);
+        mesh.visible = false;
+        scene.add(mesh);
+        windParticles.push({ mesh, life: 0 });
+      }
+
+      const sharkMat = new THREE.MeshStandardMaterial({ color: 0x5c6b78, roughness: 0.5 });
+      sharkMesh = new THREE.Group();
+      const sharkBody = new THREE.Mesh(new THREE.ConeGeometry(0.7, 2.2, 10), sharkMat);
+      sharkBody.rotation.x = Math.PI;
+      sharkMesh.add(sharkBody);
+      const sharkFin = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.6, 6), sharkMat);
+      sharkFin.position.set(0, 0.6, 0);
+      sharkMesh.add(sharkFin);
+      sharkMesh.visible = false;
+      scene.add(sharkMesh);
+
+      const rippleMat = new THREE.MeshBasicMaterial({ color: 0xbfe8ff, transparent: true, opacity: 0.6, side: THREE.DoubleSide });
+      rippleMesh = new THREE.Mesh(new THREE.RingGeometry(0.6, 1.0, 24), rippleMat);
+      rippleMesh.rotation.x = -Math.PI / 2;
+      rippleMesh.visible = false;
+      scene.add(rippleMesh);
+
+      window.addEventListener('keydown', onKeyDown);
+      window.addEventListener('keyup', onKeyUp);
+      canvas.addEventListener('pointerdown', onPointerDown);
+      window.addEventListener('pointermove', onPointerMove);
+      window.addEventListener('pointerup', onPointerUp);
+    }
+
+    function onKeyDown(e) {
+      if (e.code === 'KeyW' || e.code === 'ArrowUp') input.z = -1;
+      if (e.code === 'KeyS' || e.code === 'ArrowDown') input.z = 1;
+      if (e.code === 'KeyA' || e.code === 'ArrowLeft') input.x = -1;
+      if (e.code === 'KeyD' || e.code === 'ArrowRight') input.x = 1;
+      if (e.code === 'Space') { e.preventDefault(); jumpRequested = true; }
+    }
+    function onKeyUp(e) {
+      if ((e.code === 'KeyW' || e.code === 'ArrowUp') && input.z < 0) input.z = 0;
+      if ((e.code === 'KeyS' || e.code === 'ArrowDown') && input.z > 0) input.z = 0;
+      if ((e.code === 'KeyA' || e.code === 'ArrowLeft') && input.x < 0) input.x = 0;
+      if ((e.code === 'KeyD' || e.code === 'ArrowRight') && input.x > 0) input.x = 0;
+    }
+    function onPointerDown(e) {
+      touchActive = true;
+      touchStartX = e.clientX;
+      touchStartY = e.clientY;
+      touchStartTime = performance.now();
+    }
+    function onPointerMove(e) {
+      if (!touchActive) return;
+      const dx = e.clientX - touchStartX;
+      const dy = e.clientY - touchStartY;
+      const mag = Math.hypot(dx, dy) || 1;
+      const clamp = Math.min(mag, 60) / 60;
+      input.x = (dx / mag) * clamp;
+      input.z = (dy / mag) * clamp;
+    }
+    function onPointerUp(e) {
+      const heldMs = performance.now() - touchStartTime;
+      const dist = Math.hypot(e.clientX - touchStartX, e.clientY - touchStartY);
+      if (heldMs < 250 && dist < 12) jumpRequested = true;
+      touchActive = false;
+      input.x = 0;
+      input.z = 0;
+    }
+
+    function disposeGroup(group) {
+      group.traverse((obj) => {
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) {
+          if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+          else obj.material.dispose();
+        }
+      });
+      group.clear();
+    }
+
+    function makeRockMesh(scale) {
+      const geo = new THREE.IcosahedronGeometry(0.9, 0);
+      const pos = geo.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        const jitter = 0.85 + Math.random() * 0.3;
+        pos.setXYZ(i, pos.getX(i) * jitter, pos.getY(i) * jitter, pos.getZ(i) * jitter);
+      }
+      geo.computeVertexNormals();
+      const mat = new THREE.MeshStandardMaterial({ color: 0x5b5248, roughness: 0.95, flatShading: true });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.scale.setScalar(scale);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+      return mesh;
+    }
+
+    function buildStage(idx) {
+      const stage = STAGES[idx];
+      disposeGroup(stageGroup);
+      activeRocks = [];
+
+      scene.background = new THREE.Color(stage.sky);
+      scene.fog = new THREE.Fog(stage.fog, 20, 62);
+
+      const groundGeo = new THREE.PlaneGeometry(stage.bounds.x * 2 + 4, stage.bounds.z * 2 + 4);
+      const groundMat = new THREE.MeshStandardMaterial({ color: stage.ground, roughness: 0.9 });
+      const groundMesh = new THREE.Mesh(groundGeo, groundMat);
+      groundMesh.rotation.x = -Math.PI / 2;
+      groundMesh.receiveShadow = true;
+      stageGroup.add(groundMesh);
+
+      const wallMat = new THREE.MeshStandardMaterial({ color: stage.color, roughness: 0.6, emissive: stage.color, emissiveIntensity: 0.15 });
+      [-1, 1].forEach((side) => {
+        const wall = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.6, stage.bounds.z * 2), wallMat);
+        wall.position.set(side * (stage.bounds.x + 0.15), 0.3, 0);
+        stageGroup.add(wall);
+      });
+
+      stage.rocks.forEach((r) => {
+        const mesh = makeRockMesh(r.s);
+        mesh.position.set(r.x, 0.4 * r.s, r.z);
+        stageGroup.add(mesh);
+        activeRocks.push({ mesh, radius: 0.9 * r.s * 0.85 });
+      });
+
+      (stage.gaps || []).forEach((g) => {
+        const w = g.x2 - g.x1, d = g.z2 - g.z1;
+        const pitMat = new THREE.MeshBasicMaterial({ color: 0x090705 });
+        const pit = new THREE.Mesh(new THREE.PlaneGeometry(w, d), pitMat);
+        pit.rotation.x = -Math.PI / 2;
+        pit.position.set(g.x1 + w / 2, 0.015, g.z1 + d / 2);
+        stageGroup.add(pit);
+      });
+
+      mineList = [];
+      (stage.mines || []).forEach((m) => {
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2e, roughness: 0.7 });
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.5, 0.25, 12), bodyMat);
+        body.position.set(m.x, 0.12, m.z);
+        body.castShadow = true;
+        stageGroup.add(body);
+        const lightMat = new THREE.MeshStandardMaterial({ color: 0xff2e2e, emissive: 0xff2e2e, emissiveIntensity: 0.8 });
+        const light = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), lightMat);
+        light.position.set(m.x, 0.28, m.z);
+        stageGroup.add(light);
+        mineList.push({ x: m.x, z: m.z, used: false, group: [body, light], light });
+      });
+
+      if (stage.river) {
+        const r = stage.river;
+        const waterMat = new THREE.MeshStandardMaterial({ color: 0x1c5a8c, roughness: 0.3, transparent: true, opacity: 0.85 });
+        const water = new THREE.Mesh(new THREE.PlaneGeometry(stage.bounds.x * 2, r.z2 - r.z1), waterMat);
+        water.rotation.x = -Math.PI / 2;
+        water.position.set(0, 0.015, (r.z1 + r.z2) / 2);
+        stageGroup.add(water);
+
+        const stoneMat = new THREE.MeshStandardMaterial({ color: 0x9c8355, roughness: 0.9 });
+        r.stones.forEach((st) => {
+          const stone = new THREE.Mesh(new THREE.CylinderGeometry(st.r, st.r * 1.05, 0.3, 16), stoneMat);
+          stone.position.set(st.x, st.height / 2, st.z);
+          stone.castShadow = true;
+          stone.receiveShadow = true;
+          stageGroup.add(stone);
+        });
+      }
+
+      const holeMat = new THREE.MeshBasicMaterial({ color: 0x08060c });
+      const hole = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.15, 24), holeMat);
+      hole.position.set(stage.goal.x, 0.01, stage.goal.z);
+      stageGroup.add(hole);
+
+      const ringMat = new THREE.MeshStandardMaterial({ color: stage.color, emissive: stage.color, emissiveIntensity: 0.6 });
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(1.05, 0.06, 8, 32), ringMat);
+      ring.rotation.x = Math.PI / 2;
+      ring.position.set(stage.goal.x, 0.05, stage.goal.z);
+      stageGroup.add(ring);
+
+      const poleMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee });
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 3, 8), poleMat);
+      pole.position.set(stage.goal.x, 1.5, stage.goal.z);
+      pole.castShadow = true;
+      stageGroup.add(pole);
+      const flagMat = new THREE.MeshStandardMaterial({ color: 0xff4d6d, side: THREE.DoubleSide });
+      const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.55), flagMat);
+      flag.position.set(stage.goal.x + 0.47, 2.7, stage.goal.z);
+      stageGroup.add(flag);
+
+      startPos = stage.start;
+      goalPos = stage.goal;
+      bounds = stage.bounds;
+      windCfg = stage.wind;
+
+      player.position.set(startPos.x, CUBE_HALF, startPos.z);
+      player.quaternion.identity();
+      player.material.color.set(stage.color);
+      velocity = new THREE.Vector3(0, 0, 0);
+      cleared = false;
+      grounded = true;
+      jumpRequested = false;
+      invincibleUntil = 0;
+      launchLockUntil = 0;
+      hp = HP_MAX;
+      hpEl.textContent = '❤️'.repeat(hp);
+
+      sharkMesh.visible = false;
+      rippleMesh.visible = false;
+      sharkState = { timer: 2 + Math.random() * 2, active: null };
+
+      document.documentElement.style.setProperty('--stage-color', stage.color);
+      stageBanner.textContent = `STAGE ${idx + 1} / 3 — ${stage.name}`;
+      kusogeSub.textContent = stage.hint;
+      progressBar.style.width = '0%';
+      distanceLabel.textContent = '0%';
+      camera.position.set(startPos.x, CUBE_HALF + 6, startPos.z + 9);
+      camera.lookAt(startPos.x, CUBE_HALF, startPos.z - 4);
+    }
+
+    function getGroundHeight(stage, x, z) {
+      if (stage.gaps) {
+        for (const g of stage.gaps) {
+          if (x >= g.x1 && x <= g.x2 && z >= g.z1 && z <= g.z2) return null;
+        }
+      }
+      if (stage.river) {
+        const r = stage.river;
+        if (z >= r.z1 && z <= r.z2) {
+          for (const st of r.stones) {
+            if (Math.hypot(x - st.x, z - st.z) < st.r) return st.height;
+          }
+          return null;
+        }
+      }
+      return 0;
+    }
+
+    function spawnExplosionFX(x, z) {
+      const geo = new THREE.SphereGeometry(0.4, 12, 12);
+      const mat = new THREE.MeshBasicMaterial({ color: 0xffaa33, transparent: true, opacity: 0.9 });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(x, 0.6, z);
+      scene.add(mesh);
+      const startTime = performance.now();
+      function anim() {
+        const p = (performance.now() - startTime) / 450;
+        if (p >= 1) { scene.remove(mesh); geo.dispose(); mat.dispose(); return; }
+        mesh.scale.setScalar(1 + p * 4);
+        mat.opacity = 0.9 * (1 - p);
+        requestAnimationFrame(anim);
+      }
+      anim();
+    }
+
+    function triggerMine(m) {
+      m.used = true;
+      m.group.forEach((mesh) => { mesh.visible = false; });
+      spawnExplosionFX(m.x, m.z);
+      sfxBoom();
+      const dx = goalPos.x - m.x, dz = goalPos.z - m.z;
+      const dmag = Math.hypot(dx, dz) || 1;
+      velocity.x = (dx / dmag) * 11;
+      velocity.z = (dz / dmag) * 11;
+      velocity.y = 15;
+      grounded = false;
+      launchLockUntil = performance.now() + 450;
+      canvasFrame.classList.add('shake');
+      setTimeout(() => canvasFrame.classList.remove('shake'), 300);
+    }
+
+    function takeDamage(amount, instaKill) {
+      const now = performance.now();
+      if (!instaKill && now < invincibleUntil) return;
+      hp = instaKill ? 0 : Math.max(0, hp - amount);
+      hpEl.textContent = '❤️'.repeat(hp) + '🖤'.repeat(HP_MAX - hp);
+      invincibleUntil = now + (instaKill ? 0 : 1000);
+      canvasFrame.classList.add('shake');
+      setTimeout(() => canvasFrame.classList.remove('shake'), 200);
+      if (hp <= 0) {
+        gameOver(instaKill ? 'shark' : 'hazard');
+      } else {
+        sfxDamage();
+      }
+    }
+
+    function handleFallHazard() {
+      takeDamage(1, false);
+      if (hp > 0) {
+        player.position.set(startPos.x, CUBE_HALF, startPos.z);
+        velocity.set(0, 0, 0);
+        grounded = true;
+      }
+    }
+
+    function updateSharks(dt, stage) {
+      const s = sharkState;
+      s.timer -= dt;
+      if (!s.active && s.timer <= 0) {
+        const x = stage.river.strikeSpots[Math.floor(Math.random() * stage.river.strikeSpots.length)];
+        s.active = { x, phase: 'rise', t: 0 };
+      }
+      if (!s.active) return;
+      const a = s.active;
+      a.t += dt;
+      if (a.phase === 'rise') {
+        const p = Math.min(1, a.t / 0.5);
+        sharkMesh.visible = true;
+        sharkMesh.position.set(a.x, -1.5 + p * 2.3, 0);
+        rippleMesh.visible = true;
+        rippleMesh.position.set(a.x, 0.02, 0);
+        rippleMesh.scale.setScalar(0.4 + p * 1.6);
+        rippleMesh.material.opacity = 0.6 * (1 - p * 0.4);
+        if (p >= 1) { a.phase = 'bite'; a.t = 0; }
+      } else if (a.phase === 'bite') {
+        rippleMesh.visible = false;
+        const dPlayer = Math.hypot(player.position.x - a.x, player.position.z - 0);
+        if (dPlayer < 1.3) takeDamage(HP_MAX, true);
+        if (a.t > 0.4) { a.phase = 'sink'; a.t = 0; }
+      } else {
+        const p = Math.min(1, a.t / 0.4);
+        sharkMesh.position.y = 0.8 - p * 2.3;
+        if (p >= 1) {
+          sharkMesh.visible = false;
+          s.active = null;
+          s.timer = 2.5 + Math.random() * 2;
+        }
+      }
+    }
+
+    function updateWind(t) {
+      const angle = windCfg.angle + windCfg.swirl * t + Math.sin(t * windCfg.oscSpeed) * windCfg.oscAmp;
+      const strength = windCfg.strength;
+      return { x: Math.cos(angle) * strength, z: Math.sin(angle) * strength, angle };
+    }
+
+    function updateWindParticles(dt, wind) {
+      windParticles.forEach((p) => {
+        p.life -= dt;
+        if (p.life <= 0) {
+          const spread = 14;
+          p.mesh.position.set(
+            player.position.x - wind.x * 4 + (Math.random() - 0.5) * spread,
+            0.4 + Math.random() * 2.2,
+            player.position.z - wind.z * 4 + (Math.random() - 0.5) * spread
+          );
+          p.mesh.rotation.y = Math.atan2(wind.x, wind.z);
+          p.life = 1.2 + Math.random() * 1.2;
+          p.maxLife = p.life;
+          p.mesh.visible = true;
+        }
+        p.mesh.position.x += wind.x * dt * 1.6;
+        p.mesh.position.z += wind.z * dt * 1.6;
+        const t = p.life / (p.maxLife || 1);
+        p.mesh.material.opacity = Math.sin(Math.min(1, 1 - t) * Math.PI) * 0.35;
+      });
+    }
+
+    function update(dt) {
+      if (!gameRunning || cleared) return;
+      const stage = STAGES[stageIdx];
+      const t = clock.elapsedTime;
+      const wind = updateWind(t);
+      const now = performance.now();
+      const launched = now < launchLockUntil;
+
+      if (!launched) {
+        const mag = Math.hypot(input.x, input.z);
+        if (mag > 0.001) {
+          const nx = input.x / Math.max(mag, 1);
+          const nz = input.z / Math.max(mag, 1);
+          velocity.x += nx * ACCEL * dt;
+          velocity.z += nz * ACCEL * dt;
+        }
+      }
+      velocity.x += wind.x * dt;
+      velocity.z += wind.z * dt;
+
+      const dampFactor = Math.pow(DAMPING, dt * 60);
+      velocity.x *= dampFactor;
+      velocity.z *= dampFactor;
+
+      const speed = Math.hypot(velocity.x, velocity.z);
+      if (speed > MAX_SPEED) {
+        velocity.x = (velocity.x / speed) * MAX_SPEED;
+        velocity.z = (velocity.z / speed) * MAX_SPEED;
+      }
+
+      velocity.y -= GRAVITY * dt;
+
+      const prevX = player.position.x, prevZ = player.position.z;
+      player.position.x += velocity.x * dt;
+      player.position.z += velocity.z * dt;
+      player.position.y += velocity.y * dt;
+
+      const marginX = bounds.x - 0.8, marginZ = bounds.z - 0.8;
+      if (player.position.x > marginX) { player.position.x = marginX; velocity.x = Math.min(velocity.x, 0); }
+      if (player.position.x < -marginX) { player.position.x = -marginX; velocity.x = Math.max(velocity.x, 0); }
+      if (player.position.z > marginZ) { player.position.z = marginZ; velocity.z = Math.min(velocity.z, 0); }
+      if (player.position.z < -marginZ) { player.position.z = -marginZ; velocity.z = Math.max(velocity.z, 0); }
+
+      const floorY = getGroundHeight(stage, player.position.x, player.position.z);
+      if (floorY !== null) {
+        if (player.position.y - CUBE_HALF <= floorY + 0.001 && velocity.y <= 0) {
+          player.position.y = floorY + CUBE_HALF;
+          velocity.y = 0;
+          grounded = true;
+        } else {
+          grounded = false;
+        }
+      } else {
+        grounded = false;
+        if (player.position.y < -2.2) {
+          handleFallHazard();
+          if (!gameRunning) return;
+        }
+      }
+
+      if (jumpRequested && grounded && !launched) {
+        velocity.y = JUMP_VELOCITY;
+        grounded = false;
+        sfxJump();
+      }
+      jumpRequested = false;
+
+      if (stage.mines) {
+        mineList.forEach((m) => {
+          if (m.used) return;
+          const d = Math.hypot(player.position.x - m.x, player.position.z - m.z);
+          if (d < 1.0) triggerMine(m);
+        });
+      }
+      if (stage.river) {
+        updateSharks(dt, stage);
+        if (!gameRunning) return;
+      }
+
+      activeRocks.forEach((r) => {
+        if (r.drift) {
+          r.mesh.position.x = r.drift.baseX + Math.sin(t * r.drift.speed) * r.drift.amp;
+        }
+        const dx = player.position.x - r.mesh.position.x;
+        const dz = player.position.z - r.mesh.position.z;
+        const dist = Math.hypot(dx, dz);
+        const minDist = r.radius + PLAYER_RADIUS;
+        if (dist < minDist && dist > 0.0001) {
+          const nx = dx / dist, nz = dz / dist;
+          const overlap = minDist - dist;
+          player.position.x += nx * overlap;
+          player.position.z += nz * overlap;
+          const vn = velocity.x * nx + velocity.z * nz;
+          if (vn < 0) {
+            velocity.x -= 1.6 * vn * nx;
+            velocity.z -= 1.6 * vn * nz;
+          }
+          sfxHitRock();
+          takeDamage(1, false);
+        }
+      });
+      if (!gameRunning) return;
+
+      const rdx = player.position.x - prevX, rdz = player.position.z - prevZ;
+      const rollDist = Math.hypot(rdx, rdz);
+      if (rollDist > 0.0001) {
+        const axis = new THREE.Vector3(rdz, 0, -rdx).normalize();
+        const angle = rollDist / CUBE_HALF;
+        player.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(axis, angle));
+      }
+
+      updateWindParticles(dt, wind);
+
+      const camOffset = new THREE.Vector3(0, 6, 9);
+      const desired = new THREE.Vector3(player.position.x, 0, player.position.z).add(camOffset);
+      camera.position.lerp(desired, 1 - Math.pow(0.0008, dt));
+      camera.lookAt(player.position.x, player.position.y + 0.6, player.position.z - 3);
+
+      const totalDist = Math.hypot(goalPos.x - startPos.x, goalPos.z - startPos.z);
+      const remaining = Math.hypot(player.position.x - goalPos.x, player.position.z - goalPos.z);
+      const pct = Math.max(0, Math.min(100, Math.round((1 - remaining / totalDist) * 100)));
+      progressBar.style.width = pct + '%';
+      distanceLabel.textContent = pct + '%';
+
+      const windScreenAngle = Math.atan2(wind.x, -wind.z);
+      windArrowEl.style.transform = `rotate(${windScreenAngle}rad)`;
+      const goalScreenAngle = Math.atan2(goalPos.x - player.position.x, -(goalPos.z - player.position.z));
+      goalArrowEl.style.transform = `rotate(${goalScreenAngle}rad)`;
+
+      if (remaining < CAPTURE_RADIUS) {
+        cleared = true;
+        onHoleIn();
+      }
+    }
+
+    function render() {
+      renderer.render(scene, camera);
+    }
+
+    function loop() {
+      const dt = Math.min(clock.getDelta(), 0.05);
+      update(dt);
+      render();
+      if (gameRunning) requestAnimationFrame(loop);
+    }
+
+    function spawnConfetti(count) {
+      const stage = STAGES[stageIdx];
+      const colors = ['#ff2ec4', '#14d1ff', '#ffd76b', '#33ff5e', '#fff', stage ? stage.color : '#fff'];
+      for (let i = 0; i < count; i++) {
+        const piece = document.createElement('div');
+        piece.className = 'firework-piece';
+        piece.style.left = Math.random() * 100 + 'vw';
+        piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+        piece.style.animationDuration = (2 + Math.random() * 2) + 's';
+        piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+        document.body.appendChild(piece);
+        setTimeout(() => piece.remove(), 4200);
+      }
+    }
+
+    function onHoleIn() {
+      gameRunning = false;
+      sfxStageClear();
+      spawnConfetti(35);
+
+      if (stageIdx < STAGES.length - 1) {
+        stageClearTitle.textContent = `HOLE ${stageIdx + 1} IN!`;
+        gameScreen.classList.remove('show');
+        stageClearScreen.classList.add('show');
+        setTimeout(() => {
+          stageClearScreen.classList.remove('show');
+          stageIdx += 1;
+          gameScreen.classList.add('show');
+          buildStage(stageIdx);
+          gameRunning = true;
+          loop();
+        }, 1800);
+      } else {
+        gameScreen.classList.remove('show');
+        finalClearScreen.classList.add('show');
+        sfxAllClear();
+        spawnConfetti(90);
+      }
+    }
+
+    function gameOver(reason) {
+      gameRunning = false;
+      sfxGameOver();
+      gameOverSub.textContent = reason === 'shark' ? 'サメに食べられてしまった…！' : 'ダメージを受けすぎてしまった…！';
+      gameScreen.classList.remove('show');
+      gameOverScreen.classList.add('show');
+    }
+
+    function retryStage() {
+      gameOverScreen.classList.remove('show');
+      gameScreen.classList.add('show');
+      input.x = 0; input.z = 0;
+      buildStage(stageIdx);
+      gameRunning = true;
+      loop();
+    }
+
+    function startGame() {
+      if (!renderer) init3D();
+      homeScreen.classList.add('hidden');
+      finalClearScreen.classList.remove('show');
+      stageClearScreen.classList.remove('show');
+      gameOverScreen.classList.remove('show');
+      gameScreen.classList.add('show');
+      stageIdx = 0;
+      input.x = 0; input.z = 0;
+      buildStage(stageIdx);
+      gameRunning = true;
+      clock.start();
+      loop();
+    }
+
+    document.getElementById('startBtn').addEventListener('click', startGame);
+    document.getElementById('retryBtn').addEventListener('click', startGame);
+    document.getElementById('homeBtn').addEventListener('click', () => {
+      gameRunning = false;
+      finalClearScreen.classList.remove('show');
+      gameScreen.classList.remove('show');
+      homeScreen.classList.remove('hidden');
+    });
+    document.getElementById('gameOverRetryBtn').addEventListener('click', retryStage);
+    document.getElementById('gameOverHomeBtn').addEventListener('click', () => {
+      gameRunning = false;
+      gameOverScreen.classList.remove('show');
+      gameScreen.classList.remove('show');
+      homeScreen.classList.remove('hidden');
+    });
   </script>
 </body>
 </html>
